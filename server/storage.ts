@@ -1,38 +1,46 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import {
+  cadastros,
+  type Cadastro,
+  type InsertCadastro,
+  type UpdateCadastroRequest,
+} from "@shared/schema";
+import { eq, asc } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getCadastros(): Promise<Cadastro[]>;
+  getCadastro(id: number): Promise<Cadastro | undefined>;
+  createCadastro(cadastro: InsertCadastro): Promise<Cadastro>;
+  updateCadastro(id: number, updates: UpdateCadastroRequest): Promise<Cadastro>;
+  deleteCadastro(id: number): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getCadastros(): Promise<Cadastro[]> {
+    return await db.select().from(cadastros).orderBy(asc(cadastros.nome));
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getCadastro(id: number): Promise<Cadastro | undefined> {
+    const [cadastro] = await db.select().from(cadastros).where(eq(cadastros.id, id));
+    return cadastro;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async createCadastro(insertCadastro: InsertCadastro): Promise<Cadastro> {
+    const [cadastro] = await db.insert(cadastros).values(insertCadastro).returning();
+    return cadastro;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async updateCadastro(id: number, updates: UpdateCadastroRequest): Promise<Cadastro> {
+    const [updated] = await db.update(cadastros)
+      .set(updates)
+      .where(eq(cadastros.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCadastro(id: number): Promise<void> {
+    await db.delete(cadastros).where(eq(cadastros.id, id));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
