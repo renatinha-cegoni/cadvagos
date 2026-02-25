@@ -80,6 +80,28 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  app.get(api.organogramas.list.path, async (req, res) => {
+    const data = await storage.getOrganogramas();
+    res.json(data);
+  });
+
+  app.post(api.organogramas.create.path, async (req, res) => {
+    const input = api.organogramas.create.input.parse(req.body);
+    const item = await storage.createOrganograma(input);
+    res.status(201).json(item);
+  });
+
+  app.put(api.organogramas.update.path, async (req, res) => {
+    const input = api.organogramas.update.input.parse(req.body);
+    const item = await storage.updateOrganograma(Number(req.params.id), input);
+    res.json(item);
+  });
+
+  app.delete(api.organogramas.delete.path, async (req, res) => {
+    await storage.deleteOrganograma(Number(req.params.id));
+    res.status(204).send();
+  });
+
   app.post(api.upload.create.path, uploader.single("file"), (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: "Nenhum arquivo enviado" });

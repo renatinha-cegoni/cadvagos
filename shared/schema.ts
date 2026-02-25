@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -21,8 +21,19 @@ export const cadastros = pgTable("cadastros", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const organogramas = pgTable("organogramas", {
+  id: serial("id").primaryKey(),
+  nome: text("nome").notNull(),
+  data: jsonb("data").notNull(), // Stores positions of cards, lines, text boxes
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertCadastroSchema = createInsertSchema(cadastros).omit({ id: true, createdAt: true });
+export const insertOrganogramaSchema = createInsertSchema(organogramas).omit({ id: true, createdAt: true });
 
 export type Cadastro = typeof cadastros.$inferSelect;
 export type InsertCadastro = z.infer<typeof insertCadastroSchema>;
 export type UpdateCadastroRequest = Partial<InsertCadastro>;
+
+export type Organograma = typeof organogramas.$inferSelect;
+export type InsertOrganograma = z.infer<typeof insertOrganogramaSchema>;

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertCadastroSchema, cadastros } from './schema';
+import { insertCadastroSchema, insertOrganogramaSchema, cadastros, organogramas } from './schema';
 
 export const errorSchemas = {
   validation: z.object({ message: z.string(), field: z.string().optional() }),
@@ -52,6 +52,40 @@ export const api = {
       },
     },
   },
+  organogramas: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/organogramas' as const,
+      responses: {
+        200: z.array(z.custom<typeof organogramas.$inferSelect>()),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/organogramas' as const,
+      input: insertOrganogramaSchema,
+      responses: {
+        201: z.custom<typeof organogramas.$inferSelect>(),
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/organogramas/:id' as const,
+      input: insertOrganogramaSchema.partial(),
+      responses: {
+        200: z.custom<typeof organogramas.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/organogramas/:id' as const,
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
   upload: {
     create: {
       method: 'POST' as const,
@@ -80,3 +114,6 @@ export type CadastroInput = z.infer<typeof api.cadastros.create.input>;
 export type CadastroResponse = z.infer<typeof api.cadastros.create.responses[201]>;
 export type CadastroUpdateInput = z.infer<typeof api.cadastros.update.input>;
 export type CadastrosListResponse = z.infer<typeof api.cadastros.list.responses[200]>;
+
+export type OrganogramaInput = z.infer<typeof api.organogramas.create.input>;
+export type OrganogramaResponse = z.infer<typeof api.organogramas.create.responses[201]>;
