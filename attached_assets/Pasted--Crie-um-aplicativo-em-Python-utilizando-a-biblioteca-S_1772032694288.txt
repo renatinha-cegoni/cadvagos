@@ -1,0 +1,47 @@
+"Crie um aplicativo em Python utilizando a biblioteca Streamlit chamado CADVAGOS. A interface deve ser em Português (Brasil), com design limpo, profissional e intuitivo.
+
+1. Tela de Acesso e Navegação:
+
+Ao iniciar, o app deve exibir apenas um campo de senha. A senha de acesso é 'ari'.
+
+Após o login, exiba um Menu Principal com botões grandes para as abas: 'CADASTROS', 'BANCO DE DADOS' e 'CARTORIAIS'.
+
+Regra de Navegação: No topo de todas as abas, deve haver um botão 'VOLTAR AO MENU'. Para mudar de aba, o usuário obrigatoriamente clica neste botão para retornar ao menu principal.
+
+Adicione um botão 'SAIR' no topo para fazer logout e retornar à tela de senha.
+
+2. Aba CADASTROS:
+
+Crie campos de entrada para: Nome, Alcunha, RG, CPF, Data de Nascimento (formato DD/MM/AAAA), OrCrim, Situação, Código de preso, Pai, Mãe, Endereço, Antecedentes e Observações.
+
+Adicione um campo de Upload de Imagem para a foto do indivíduo.
+
+Botão SALVAR: Ao clicar, o app deve validar se o nome foi preenchido. Todos os textos inseridos devem ser convertidos automaticamente para LETRAS MAIÚSCULAS antes de serem salvos no banco de dados (use SQLite para persistência).
+
+3. Aba BANCO DE DADOS:
+
+Exiba uma lista de todos os cadastrados em ordem alfabética pelo Nome.
+
+Formato da lista: 'NOME DO INDIVÍDUO - ALCUNHA'.
+
+Inclua uma Barra de Pesquisa que filtre a lista por nome completo, parte do nome ou alcunha.
+
+Ao lado de cada nome, coloque ícones de Editar e Excluir.
+
+Segurança: Ao clicar em Editar ou Excluir, solicite a senha '1837'.
+
+Se a edição for aprovada, o usuário deve ser levado à aba CADASTROS com os dados do indivíduo já carregados para alteração.
+
+4. Aba CARTORIAIS (Geração de Tabelas):
+
+Permita pesquisar o indivíduo e selecionar um ou vários da lista.
+
+Para cada indivíduo selecionado, gere uma tabela visual exatamente como este modelo:
+
+Layout: Uma linha externa contornando tudo. Uma coluna estreita à esquerda para a FOTO (redimensionada automaticamente para caber) e o restante do espaço para os dados à direita.
+
+Formatação de Texto: Títulos (NOME, ALCUNHA, RG, CPF, DN, CD, ORCRIM, SITUAÇÃO, FILIAÇÃO, END., OC, OBS.) devem estar em NEGRITO, MAIÚSCULAS, fonte Times New Roman, tamanho 9.
+
+As respostas devem estar em ITÁLICO, MAIÚSCULAS (sem negrito), fonte Times New Roman, tamanho 9.
+
+Adicione botões para exportar esses relatórios em formato PDF e Word (.docx), mantendo a formatação da tabela."
