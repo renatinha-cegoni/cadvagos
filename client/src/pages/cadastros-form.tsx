@@ -60,7 +60,18 @@ export default function CadastrosForm() {
   }, [isEditing, existingData, reset]);
 
   const handleUppercaseChange = (field: keyof FormData, e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setValue(field, e.target.value.toUpperCase(), { shouldValidate: true, shouldDirty: true });
+    let val = e.target.value.toUpperCase();
+    if (field === "cpf") {
+      val = val.replace(/\D/g, "").slice(0, 11);
+      val = val.replace(/(\d{3})(\d)/, "$1.$2");
+      val = val.replace(/(\d{3})(\d)/, "$1.$2");
+      val = val.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    } else if (field === "dataNascimento") {
+      val = val.replace(/\D/g, "").slice(0, 8);
+      val = val.replace(/(\d{2})(\d)/, "$1/$2");
+      val = val.replace(/(\d{2})(\d)/, "$1/$2");
+    }
+    setValue(field, val, { shouldValidate: true, shouldDirty: true });
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
