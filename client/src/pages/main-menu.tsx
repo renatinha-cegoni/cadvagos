@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Layout } from "@/components/layout";
-import { FileEdit, Database, FileText } from "lucide-react";
+import { FileEdit, Database, FileText, Network } from "lucide-react";
 
 export default function MainMenu() {
   const menuItems = [
@@ -24,6 +24,13 @@ export default function MainMenu() {
       icon: <FileText className="w-12 h-12 mb-4 text-purple-600" />,
       href: "/cartoriais",
       color: "border-purple-200 hover:border-purple-500 hover:bg-purple-50",
+    },
+    {
+      title: "ORGANOGRAMAS",
+      description: "Criar diagramas visuais e conexões",
+      icon: <Network className="w-12 h-12 mb-4 text-orange-600" />,
+      href: "/organogramas",
+      color: "border-orange-200 hover:border-orange-500 hover:bg-orange-50",
     }
   ];
 

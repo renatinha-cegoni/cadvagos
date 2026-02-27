@@ -13,6 +13,8 @@ import CadastrosForm from "@/pages/cadastros-form";
 import BancoDeDados from "@/pages/banco-de-dados";
 import Cartoriais from "@/pages/cartoriais";
 
+import Organogramas from "@/pages/organogramas";
+
 function Router() {
   return (
     <Switch>
@@ -22,6 +24,7 @@ function Router() {
       <Route path="/cadastros/:id" component={CadastrosForm} />
       <Route path="/banco-de-dados" component={BancoDeDados} />
       <Route path="/cartoriais" component={Cartoriais} />
+      <Route path="/organogramas" component={Organogramas} />
       <Route component={NotFound} />
     </Switch>
   );
