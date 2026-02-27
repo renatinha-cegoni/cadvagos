@@ -140,3 +140,67 @@ export function useUploadImage() {
     }
   });
 }
+
+// Organogramas Hooks
+export function useOrganogramas() {
+  return useQuery({
+    queryKey: [api.organogramas.list.path],
+    queryFn: async () => {
+      const res = await fetch(api.organogramas.list.path);
+      if (!res.ok) throw new Error("Erro ao buscar organogramas");
+      return api.organogramas.list.responses[200].parse(await res.json());
+    }
+  });
+}
+
+export function useCreateOrganograma() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch(api.organogramas.create.path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) throw new Error("Erro ao salvar organograma");
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.organogramas.list.path] });
+    }
+  });
+}
+
+export function useUpdateOrganograma() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...data }: any) => {
+      const res = await fetch(buildUrl(api.organogramas.update.path, { id }), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) throw new Error("Erro ao atualizar organograma");
+      return await res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.organogramas.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.organogramas.get.path, variables.id] });
+    }
+  });
+}
+
+export function useDeleteOrganograma() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(buildUrl(api.organogramas.delete.path, { id }), {
+        method: "DELETE"
+      });
+      if (!res.ok) throw new Error("Erro ao excluir organograma");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.organogramas.list.path] });
+    }
+  });
+}

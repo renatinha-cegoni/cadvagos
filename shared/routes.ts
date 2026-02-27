@@ -60,6 +60,14 @@ export const api = {
         200: z.array(z.custom<typeof organogramas.$inferSelect>()),
       },
     },
+    get: {
+      method: 'GET' as const,
+      path: '/api/organogramas/:id' as const,
+      responses: {
+        200: z.custom<typeof organogramas.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
     create: {
       method: 'POST' as const,
       path: '/api/organogramas' as const,

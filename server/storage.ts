@@ -18,6 +18,7 @@ export interface IStorage {
   deleteCadastro(id: number): Promise<void>;
   
   getOrganogramas(): Promise<Organograma[]>;
+  getOrganograma(id: number): Promise<Organograma | undefined>;
   createOrganograma(organograma: InsertOrganograma): Promise<Organograma>;
   updateOrganograma(id: number, updates: Partial<InsertOrganograma>): Promise<Organograma>;
   deleteOrganograma(id: number): Promise<void>;
@@ -52,6 +53,11 @@ export class DatabaseStorage implements IStorage {
 
   async getOrganogramas(): Promise<Organograma[]> {
     return await db.select().from(organogramas);
+  }
+
+  async getOrganograma(id: number): Promise<Organograma | undefined> {
+    const [item] = await db.select().from(organogramas).where(eq(organogramas.id, id));
+    return item;
   }
 
   async createOrganograma(organograma: InsertOrganograma): Promise<Organograma> {

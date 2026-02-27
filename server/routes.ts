@@ -85,6 +85,12 @@ export async function registerRoutes(
     res.json(data);
   });
 
+  app.get(api.organogramas.get.path, async (req, res) => {
+    const item = await storage.getOrganograma(Number(req.params.id));
+    if (!item) return res.status(404).json({ message: "Organograma não encontrado" });
+    res.json(item);
+  });
+
   app.post(api.organogramas.create.path, async (req, res) => {
     const input = api.organogramas.create.input.parse(req.body);
     const item = await storage.createOrganograma(input);
