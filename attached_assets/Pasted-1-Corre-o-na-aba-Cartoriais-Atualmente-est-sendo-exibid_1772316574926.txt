@@ -1,0 +1,129 @@
+1) Correção na aba Cartoriais
+
+Atualmente está sendo exibido:
+
+DN: DATA DE NASCIMENTO 01/01/2000
+
+Modificar apenas a renderização para que fique:
+
+DN: 01/01/2000
+
+Regras:
+
+Remover somente o texto fixo "DATA DE NASCIMENTO".
+
+Manter a função atual de formatação da data.
+
+Não alterar backend.
+
+Não alterar banco de dados.
+
+Apenas ajustar a string exibida na interface.
+
+2) Melhorias na aba Organograma
+
+Implementar melhorias visuais e funcionais sem alterar a lógica já existente.
+
+A) Criar menu lateral esquerdo fixo
+
+Adicionar um menu lateral contendo:
+
+Botões:
+
+NOVO
+
+EDITAR
+
+SALVAR
+
+Abaixo dos botões:
+
+Lista de organogramas salvos
+
+Lista de indivíduos cadastrados aptos a serem inseridos
+
+Regras:
+
+Reutilizar funções já existentes de salvar, editar e carregar.
+
+Caso já existam métodos, apenas conectar aos botões.
+
+Caso não existam, criar funções isoladas sem impactar outras partes do sistema.
+
+Não alterar lógica atual de persistência.
+
+B) Criar cabeçalho superior (toolbar)
+
+Adicionar barra superior contendo botões para:
+
+Inserir caixa de texto
+
+Inserir seta manualmente
+
+Inserir círculo manualmente
+
+Regras:
+
+Não alterar funcionalidades já existentes.
+
+Apenas adicionar novos recursos.
+
+Garantir compatibilidade com sistema atual.
+
+C) Caixa de texto autoajustável
+
+A caixa de texto deve:
+
+Crescer automaticamente conforme o conteúdo digitado.
+
+Nunca cortar texto.
+
+Garantir que todo conteúdo apareça corretamente no PDF.
+
+Implementar auto-resize apenas na visualização, sem interferir nas coordenadas salvas.
+
+3) Correção da geração de PDF
+
+A exportação deve:
+
+Gerar PDF em formato A4
+
+Orientação retrato
+
+Não cortar imagens ou textos
+
+Redimensionar proporcionalmente todo o conteúdo
+
+Regras:
+
+Não alterar outras funcionalidades do sistema de exportação.
+
+Ajustar apenas escala, dimensionamento e quebra de página.
+
+Garantir que todo o organograma seja renderizado integralmente.
+
+O zoom da tela não pode afetar a escala do PDF final.
+
+4) Implementar Zoom na área do organograma
+
+Adicionar controle de:
+
+Zoom In
+
+Zoom Out
+
+Requisitos:
+
+Aplicar apenas na visualização (ex: CSS transform scale).
+
+Não alterar coordenadas reais dos elementos.
+
+Não interferir na geração do PDF.
+
+Não modificar dados salvos.
+
+REGRA FINAL
+
+As alterações devem ser implementadas de forma incremental e segura, preservando todo o funcionamento atual do sistema.
+
+Se algum ajuste impactar funcionalidade existente, abortar a modificação e implementar alternativa isolada.

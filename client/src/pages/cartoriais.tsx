@@ -200,7 +200,6 @@ export default function Cartoriais() {
                       </div>
                       <div className="w-[35%] p-1">
                         <div className="font-bold text-[9pt] font-['Times_New_Roman']">DN:</div>
-                        <div className="italic text-[7pt] font-['Times_New_Roman'] uppercase leading-tight">DATA DE NASCIMENTO DD/MM/AAAA</div>
                         <div className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.dataNascimento}</div>
                       </div>
                     </div>

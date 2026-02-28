@@ -5,7 +5,7 @@ import { useCadastros, useCreateOrganograma, useUpdateOrganograma, useOrganogram
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ArrowRight, Type, Download, Save, MousePointer2, User, Eye, FilePlus, FolderOpen, Loader2 } from "lucide-react";
+import { Plus, Trash2, ArrowRight, Type, Download, Save, User, Eye, FilePlus, FolderOpen, Loader2, ZoomIn, ZoomOut, Circle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PasswordPrompt } from "@/components/password-prompt";
 import html2canvas from "html2canvas";
@@ -19,7 +19,7 @@ import {
 
 interface OrganogramaNode {
   id: string;
-  type: 'person' | 'text';
+  type: 'person' | 'text' | 'circle';
   x: number;
   y: number;
   data: any;
@@ -58,6 +58,7 @@ export default function Organogramas() {
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<any>(null);
   const [openDialogOpen, setOpenDialogOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
   
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -73,8 +74,8 @@ export default function Organogramas() {
     const newNode: OrganogramaNode = {
       id: `person-${person.id}-${Date.now()}`,
       type: 'person',
-      x: 100,
-      y: 100,
+      x: 100 / zoom,
+      y: 100 / zoom,
       data: person
     };
     setNodes([...nodes, newNode]);
@@ -84,9 +85,20 @@ export default function Organogramas() {
     const newNode: OrganogramaNode = {
       id: `text-${Date.now()}`,
       type: 'text',
-      x: 150,
-      y: 150,
+      x: 150 / zoom,
+      y: 150 / zoom,
       data: { text: "Nova Caixa de Texto" }
+    };
+    setNodes([...nodes, newNode]);
+  };
+
+  const addCircle = () => {
+    const newNode: OrganogramaNode = {
+      id: `circle-${Date.now()}`,
+      type: 'circle',
+      x: 200 / zoom,
+      y: 200 / zoom,
+      data: {}
     };
     setNodes([...nodes, newNode]);
   };
@@ -115,10 +127,28 @@ export default function Organogramas() {
 
   const exportPDF = async () => {
     if (!canvasRef.current) return;
-    const canvas = await html2canvas(canvasRef.current, { useCORS: true });
+    
+    // Temporarily reset zoom for capture
+    const originalZoom = zoom;
+    setZoom(1);
+    
+    // Wait for state update
+    await new Promise(r => setTimeout(r, 100));
+
+    const canvas = await html2canvas(canvasRef.current, { 
+      useCORS: true,
+      scale: 2,
+      backgroundColor: "#ffffff"
+    });
+    
+    setZoom(originalZoom);
+    
     const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('l', 'mm', 'a4');
-    pdf.addImage(imgData, 'PNG', 10, 10, 280, 190);
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
     pdf.save(`${organogramaNome || 'organograma'}.pdf`);
   };
 
@@ -176,184 +206,250 @@ export default function Organogramas() {
 
   return (
     <Layout title="ORGANOGRAMAS">
-      <div className="flex flex-col h-[calc(100vh-120px)]">
-        {/* Toolbar */}
-        <div className="flex flex-wrap gap-2 p-3 bg-slate-100 border-b items-center shadow-sm">
-          <Input
-            placeholder="NOME DO ORGANOGRAMA"
-            value={organogramaNome}
-            onChange={(e) => setOrganogramaNome(e.target.value.toUpperCase())}
-            className="w-64 h-9 text-sm font-bold bg-white"
-          />
-          <div className="w-px h-6 bg-slate-300 mx-1" />
-          <Button onClick={novoOrganograma} variant="outline" size="sm" className="bg-white hover:bg-slate-50">
-            <FilePlus className="w-4 h-4 mr-1 text-blue-600" /> NOVO
-          </Button>
-          <Button onClick={() => setOpenDialogOpen(true)} variant="outline" size="sm" className="bg-white">
-            <FolderOpen className="w-4 h-4 mr-1 text-amber-600" /> ABRIR
-          </Button>
-          <Button onClick={handleSave} variant="outline" size="sm" className="bg-white border-green-200 hover:bg-green-50 text-green-700">
-            <Save className="w-4 h-4 mr-1" /> SALVAR
-          </Button>
-          
-          <div className="w-px h-6 bg-slate-300 mx-1" />
-          <Button onClick={addText} variant="outline" size="sm" className="bg-white">
-            <Type className="w-4 h-4 mr-1 text-slate-600" /> TEXTO
-          </Button>
-          <Button 
-            onClick={() => setIsAddingConnection(!isAddingConnection)} 
-            variant={isAddingConnection ? "default" : "outline"} 
-            size="sm"
-            className={!isAddingConnection ? "bg-white" : ""}
-          >
-            <ArrowRight className="w-4 h-4 mr-1" /> CONECTAR
-          </Button>
-          <div className="flex-1" />
-          <Button onClick={exportPDF} variant="outline" size="sm" className="bg-white border-red-200 text-red-700 hover:bg-red-50">
-            <Download className="w-4 h-4 mr-1" /> PDF
-          </Button>
+      <div className="flex h-[calc(100vh-120px)] overflow-hidden">
+        {/* Sidebar Esquerda Fixa */}
+        <div className="w-72 bg-slate-50 border-r flex flex-col shadow-inner z-30">
+          <div className="p-4 space-y-3 border-b bg-white">
+            <Input
+              placeholder="NOME DO ORGANOGRAMA"
+              value={organogramaNome}
+              onChange={(e) => setOrganogramaNome(e.target.value.toUpperCase())}
+              className="h-9 text-sm font-bold border-slate-300"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={novoOrganograma} variant="outline" size="sm" className="bg-white hover:bg-slate-50 text-blue-600 border-blue-100">
+                <FilePlus className="w-4 h-4 mr-1" /> NOVO
+              </Button>
+              <Button onClick={() => setOpenDialogOpen(true)} variant="outline" size="sm" className="bg-white text-amber-600 border-amber-100">
+                <FolderOpen className="w-4 h-4 mr-1" /> ABRIR
+              </Button>
+            </div>
+            <Button onClick={handleSave} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 shadow-sm">
+              <Save className="w-4 h-4 mr-2" /> SALVAR ORGANOGRAMA
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            <div>
+              <h3 className="font-bold text-[10px] mb-3 uppercase text-slate-400 tracking-widest border-b pb-1">Organogramas Salvos</h3>
+              <div className="space-y-1.5">
+                {isLoadingList ? (
+                  <div className="flex justify-center p-4"><Loader2 className="animate-spin w-4 h-4 text-slate-300" /></div>
+                ) : (
+                  savedOrganogramas?.slice(0, 5).map((org: any) => (
+                    <div key={org.id} onClick={() => handleOpen(org)} className="p-2 bg-white border border-slate-200 rounded cursor-pointer hover:border-blue-400 text-[10px] font-bold uppercase truncate transition-all">
+                      {org.nome}
+                    </div>
+                  ))
+                )}
+                <Button variant="link" className="p-0 h-auto text-[10px] uppercase font-bold text-slate-500" onClick={() => setOpenDialogOpen(true)}>Ver todos...</Button>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-bold text-[10px] mb-3 uppercase text-slate-400 tracking-widest border-b pb-1">Indivíduos no Banco</h3>
+              <div className="space-y-2">
+                {cadastros?.map(p => (
+                  <div 
+                    key={p.id} 
+                    className="p-2.5 bg-white border border-slate-200 rounded-lg cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all group flex justify-between items-center"
+                    onClick={() => addPerson(p)}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold truncate uppercase text-slate-800">{p.nome}</p>
+                      <p className="text-[9px] text-slate-500 truncate uppercase">{p.alcunha || 'Sem Alcunha'}</p>
+                    </div>
+                    <Plus className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar - Person List */}
-          <div className="w-72 bg-slate-50 border-r p-4 overflow-y-auto">
-            <h3 className="font-bold text-xs mb-4 uppercase text-slate-500 tracking-wider">Banco de Dados</h3>
-            <div className="space-y-2">
-              {cadastros?.map(p => (
-                <div 
-                  key={p.id} 
-                  className="p-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all group flex justify-between items-center"
-                  onClick={() => addPerson(p)}
-                >
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold truncate uppercase text-slate-800">{p.nome}</p>
-                    <p className="text-[10px] text-slate-500 truncate uppercase">{p.alcunha || 'Sem Alcunha'}</p>
-                  </div>
-                  <Plus className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
-                </div>
-              ))}
+        {/* Área Principal */}
+        <div className="flex-1 flex flex-col relative bg-slate-100">
+          {/* Toolbar Superior */}
+          <div className="h-14 bg-white border-b flex items-center px-4 gap-3 shadow-sm z-20">
+            <div className="flex bg-slate-100 p-1 rounded-lg border gap-1">
+              <Button onClick={addText} variant="ghost" size="sm" className="h-8 hover:bg-white hover:shadow-sm text-slate-600">
+                <Type className="w-4 h-4 mr-1.5" /> TEXTO
+              </Button>
+              <Button 
+                onClick={() => setIsAddingConnection(!isAddingConnection)} 
+                variant={isAddingConnection ? "secondary" : "ghost"} 
+                size="sm"
+                className={`h-8 ${isAddingConnection ? "bg-white shadow-sm" : "text-slate-600"}`}
+              >
+                <ArrowRight className="w-4 h-4 mr-1.5" /> SETA
+              </Button>
+              <Button onClick={addCircle} variant="ghost" size="sm" className="h-8 hover:bg-white hover:shadow-sm text-slate-600">
+                <Circle className="w-4 h-4 mr-1.5" /> CÍRCULO
+              </Button>
             </div>
+
+            <div className="h-6 w-px bg-slate-200 mx-2" />
+
+            <div className="flex bg-slate-100 p-1 rounded-lg border gap-1">
+              <Button onClick={() => setZoom(Math.min(zoom + 0.1, 2))} variant="ghost" size="icon" className="h-8 w-8 hover:bg-white">
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+              <div className="flex items-center px-2 text-[10px] font-bold text-slate-500 w-12 justify-center">
+                {Math.round(zoom * 100)}%
+              </div>
+              <Button onClick={() => setZoom(Math.max(zoom - 0.1, 0.5))} variant="ghost" size="icon" className="h-8 w-8 hover:bg-white">
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="flex-1" />
+            
+            <Button onClick={exportPDF} className="bg-slate-900 hover:bg-black text-white font-bold h-9">
+              <Download className="w-4 h-4 mr-2" /> EXPORTAR PDF (A4)
+            </Button>
           </div>
 
           {/* Canvas Area */}
-          <div 
-            ref={canvasRef}
-            className="flex-1 relative bg-slate-200 overflow-auto p-40"
-            style={{ 
-              backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', 
-              backgroundSize: '30px 30px',
-              cursor: isAddingConnection ? 'crosshair' : 'default'
-            }}
-          >
-            {nodes.map(node => (
-              <Draggable 
-                key={node.id}
-                defaultPosition={{ x: node.x, y: node.y }}
-                onStop={(e, data) => {
-                  setNodes(nodes.map(n => n.id === node.id ? { ...n, x: data.x, y: data.y } : n));
-                }}
-              >
-                <div 
-                  className={`absolute z-10 cursor-move group ${isAddingConnection ? 'ring-4 ring-blue-400 ring-offset-2 rounded-xl' : ''} ${connectionStart === node.id ? 'ring-4 ring-orange-400 ring-offset-2' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startConnection(node.id);
+          <div className="flex-1 relative overflow-auto bg-slate-200">
+            <div 
+              ref={canvasRef}
+              className="relative p-[2000px] origin-top-left"
+              style={{ 
+                backgroundImage: 'radial-gradient(#cbd5e1 1.5px, transparent 1.5px)', 
+                backgroundSize: '40px 40px',
+                cursor: isAddingConnection ? 'crosshair' : 'default',
+                transform: `scale(${zoom})`,
+                minWidth: '5000px',
+                minHeight: '5000px'
+              }}
+              onClick={() => {
+                if (isAddingConnection) {
+                  setConnectionStart(null);
+                  setIsAddingConnection(false);
+                }
+              }}
+            >
+              {nodes.map(node => (
+                <Draggable 
+                  key={node.id}
+                  position={{ x: node.x, y: node.y }}
+                  scale={zoom}
+                  onStop={(e, data) => {
+                    setNodes(nodes.map(n => n.id === node.id ? { ...n, x: data.x, y: data.y } : n));
                   }}
                 >
-                  {node.type === 'person' ? (
-                    <Card className="w-44 bg-white border-2 border-slate-900 overflow-hidden shadow-2xl relative">
-                      <div className="h-28 bg-slate-100 border-b relative">
-                        {node.data.imageUrl ? (
-                          <img src={node.data.imageUrl} className="w-full h-full object-cover" crossOrigin="anonymous" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-slate-50"><User className="w-10 h-10 text-slate-300" /></div>
-                        )}
-                        <Button
-                          size="icon"
-                          variant="secondary"
-                          className="absolute top-1 right-1 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg bg-white/90 hover:bg-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedPerson(node.data);
-                          }}
-                        >
-                          <Eye className="h-4 w-4 text-blue-600" />
-                        </Button>
-                      </div>
-                      <div className="p-3 space-y-1 bg-white">
-                        <p className="text-[11px] font-bold truncate uppercase leading-tight text-slate-900">{node.data.nome}</p>
-                        <p className="text-[9px] italic truncate uppercase text-slate-500 font-medium">{node.data.alcunha || 'SEM ALCUNHA'}</p>
-                        <div className="pt-2 mt-1 border-t border-slate-100 flex flex-col gap-0.5 text-[8px] font-bold">
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">RG:</span>
-                            <span>{node.data.rg}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">ORCRIM:</span>
-                            <span className="text-blue-700">{node.data.orcrim}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  ) : (
-                    <div className="bg-yellow-50 border-2 border-yellow-300 p-3 shadow-xl min-w-[120px] rounded-sm relative">
-                      <textarea 
-                        className="bg-transparent border-none resize-none w-full text-xs uppercase italic font-bold focus:ring-0 p-0 text-slate-800"
-                        defaultValue={node.data.text}
-                        rows={2}
-                      />
-                    </div>
-                  )}
-                  <Button 
-                    size="icon"
-                    variant="destructive"
-                    className="absolute -top-3 -right-3 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg border-2 border-white"
+                  <div 
+                    className={`absolute z-10 cursor-move group ${isAddingConnection ? 'ring-4 ring-blue-400 ring-offset-4 rounded-xl' : ''} ${connectionStart === node.id ? 'ring-4 ring-orange-400 ring-offset-4 rounded-xl' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeNode(node.id);
+                      startConnection(node.id);
                     }}
                   >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </Draggable>
-            ))}
-            
-            {/* SVG Layer for Connections */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: 3000, minHeight: 3000 }}>
-              <defs>
-                <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-                  <path d="M0,0 L0,10 L10,5 z" fill="#ef4444" />
-                </marker>
-              </defs>
-              {connections.map((conn) => {
-                const from = nodes.find(n => n.id === conn.from);
-                const to = nodes.find(n => n.id === conn.to);
-                if (!from || !to) return null;
-                
-                // Connection calculation
-                const x1 = from.x + 88;
-                const y1 = from.y + (from.type === 'person' ? 150 : 45);
-                const x2 = to.x + 88;
-                const y2 = to.y - 10;
+                    {node.type === 'person' ? (
+                      <Card className="w-48 bg-white border-2 border-slate-900 overflow-hidden shadow-2xl relative">
+                        <div className="h-32 bg-slate-100 border-b relative">
+                          {node.data.imageUrl ? (
+                            <img src={node.data.imageUrl} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-50"><User className="w-12 h-12 text-slate-300" /></div>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="absolute top-2 right-2 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg bg-white/90 hover:bg-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPerson(node.data);
+                            }}
+                          >
+                            <Eye className="h-5 w-5 text-blue-600" />
+                          </Button>
+                        </div>
+                        <div className="p-3.5 space-y-1 bg-white">
+                          <p className="text-[12px] font-bold truncate uppercase leading-tight text-slate-900">{node.data.nome}</p>
+                          <p className="text-[10px] italic truncate uppercase text-slate-500 font-bold">{node.data.alcunha || 'SEM ALCUNHA'}</p>
+                          <div className="pt-2 mt-2 border-t border-slate-100 flex flex-col gap-1 text-[9px] font-bold">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">RG:</span>
+                              <span className="text-slate-700">{node.data.rg}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">ORCRIM:</span>
+                              <span className="text-blue-800">{node.data.orcrim}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ) : node.type === 'text' ? (
+                      <div className="bg-yellow-50 border-2 border-yellow-400 p-4 shadow-xl min-w-[150px] rounded-sm relative flex">
+                        <textarea 
+                          className="bg-transparent border-none resize-none w-full text-sm uppercase italic font-black focus:ring-0 p-0 text-slate-900 overflow-hidden"
+                          defaultValue={node.data.text}
+                          onChange={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          rows={1}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-24 h-24 border-4 border-slate-900 rounded-full bg-white/20 shadow-xl backdrop-blur-sm" />
+                    )}
+                    <Button 
+                      size="icon"
+                      variant="destructive"
+                      className="absolute -top-3 -right-3 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg border-2 border-white"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeNode(node.id);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </Draggable>
+              ))}
+              
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: 5000, minHeight: 5000 }}>
+                <defs>
+                  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                    <path d="M0,0 L0,10 L10,5 z" fill="#ef4444" />
+                  </marker>
+                </defs>
+                {connections.map((conn) => {
+                  const from = nodes.find(n => n.id === conn.from);
+                  const to = nodes.find(n => n.id === conn.to);
+                  if (!from || !to) return null;
+                  
+                  const getCenter = (n: OrganogramaNode) => {
+                    const w = n.type === 'person' ? 192 : n.type === 'text' ? 150 : 96;
+                    const h = n.type === 'person' ? 220 : n.type === 'text' ? 60 : 96;
+                    return { x: n.x + w/2, y: n.y + h/2 };
+                  };
 
-                return (
-                  <g key={conn.id} className="pointer-events-auto cursor-pointer group/line" onClick={() => removeConnection(conn.id)}>
-                    <title>Clique para excluir conexão</title>
-                    <line 
-                      x1={x1} y1={y1}
-                      x2={x2} y2={y2}
-                      stroke="#ef4444"
-                      strokeWidth="4"
-                      markerEnd="url(#arrow)"
-                      className="group-hover/line:stroke-red-700 transition-colors drop-shadow-md"
-                    />
-                    <circle cx={(x1+x2)/2} cy={(y1+y2)/2} r="6" className="fill-red-600 opacity-0 group-hover/line:opacity-100" />
-                    <text x={(x1+x2)/2} y={(y1+y2)/2 - 10} className="text-[10px] fill-red-700 font-bold opacity-0 group-hover/line:opacity-100 uppercase" textAnchor="middle">Remover</text>
-                  </g>
-                );
-              })}
-            </svg>
+                  const c1 = getCenter(from);
+                  const c2 = getCenter(to);
+
+                  return (
+                    <g key={conn.id} className="pointer-events-auto cursor-pointer group/line" onClick={() => removeConnection(conn.id)}>
+                      <line 
+                        x1={c1.x} y1={c1.y}
+                        x2={c2.x} y2={c2.y}
+                        stroke="#ef4444"
+                        strokeWidth="5"
+                        markerEnd="url(#arrow)"
+                        className="group-hover/line:stroke-red-700 transition-colors drop-shadow-xl"
+                      />
+                      <circle cx={(c1.x+c2.x)/2} cy={(c1.y+c2.y)/2} r="8" className="fill-red-600 opacity-0 group-hover/line:opacity-100 shadow-lg" />
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
           </div>
         </div>
       </div>
@@ -362,21 +458,21 @@ export default function Organogramas() {
       <Dialog open={openDialogOpen} onOpenChange={setOpenDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="uppercase tracking-tight">Organogramas Salvos</DialogTitle>
+            <DialogTitle className="uppercase tracking-tight font-bold">Gerenciar Organogramas</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 mt-4 max-h-96 overflow-y-auto">
+          <div className="space-y-2 mt-4 max-h-96 overflow-y-auto pr-2">
             {isLoadingList ? (
-              <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
+              <div className="flex justify-center p-8"><Loader2 className="animate-spin text-blue-600" /></div>
             ) : savedOrganogramas?.length === 0 ? (
-              <p className="text-center text-slate-500 py-8 text-sm">Nenhum organograma encontrado.</p>
+              <p className="text-center text-slate-500 py-8 text-sm italic">Nenhum organograma encontrado.</p>
             ) : (
               savedOrganogramas?.map((org: any) => (
-                <div key={org.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50 transition-colors group">
+                <div key={org.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-all group">
                   <div className="flex-1 cursor-pointer" onClick={() => handleOpen(org)}>
-                    <p className="font-bold text-sm uppercase text-slate-800">{org.nome}</p>
-                    <p className="text-[10px] text-slate-400">{new Date(org.createdAt).toLocaleString()}</p>
+                    <p className="font-bold text-sm uppercase text-slate-800 tracking-tight">{org.nome}</p>
+                    <p className="text-[10px] text-slate-400 font-medium">{new Date(org.createdAt).toLocaleString()}</p>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDelete(org.id)}>
+                  <Button variant="ghost" size="icon" className="text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); handleDelete(org.id); }}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -388,34 +484,42 @@ export default function Organogramas() {
 
       {/* Person Detail Dialog */}
       <Dialog open={!!selectedPerson} onOpenChange={() => setSelectedPerson(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl bg-white border-none shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="uppercase border-b pb-2 tracking-tight">Perfil Detalhado</DialogTitle>
+            <DialogTitle className="uppercase border-b pb-4 tracking-tighter text-xl font-black text-slate-900">Perfil Criminal Detalhado</DialogTitle>
           </DialogHeader>
           {selectedPerson && (
             <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pt-4">
               <div className="md:col-span-4">
-                <div className="aspect-[3/4] bg-slate-100 rounded-xl overflow-hidden border-2 border-slate-200 shadow-inner">
+                <div className="aspect-[3/4] bg-slate-50 rounded-2xl overflow-hidden border-4 border-slate-100 shadow-inner flex items-center justify-center">
                   {selectedPerson.imageUrl ? (
                     <img src={selectedPerson.imageUrl} className="w-full h-full object-cover" crossOrigin="anonymous" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-50"><User className="w-20 h-20 opacity-20" /></div>
+                    <User className="w-24 h-24 text-slate-200" />
                   )}
                 </div>
               </div>
-              <div className="md:col-span-8 space-y-3">
-                <DetailRow label="NOME" value={selectedPerson.nome} />
-                <DetailRow label="ALCUNHA" value={selectedPerson.alcunha} />
-                <DetailRow label="RG" value={selectedPerson.rg} />
-                <DetailRow label="CPF" value={selectedPerson.cpf} />
-                <DetailRow label="ORCRIM" value={selectedPerson.orcrim} />
-                <DetailRow label="SITUAÇÃO" value={selectedPerson.situacao} />
-                <DetailRow label="PAI" value={selectedPerson.pai} />
-                <DetailRow label="MÃE" value={selectedPerson.mae} />
-                <DetailRow label="ENDEREÇO" value={selectedPerson.endereco} />
+              <div className="md:col-span-8 space-y-4">
+                <div className="grid grid-cols-1 gap-2">
+                  <DetailRow label="NOME COMPLETO" value={selectedPerson.nome} />
+                  <DetailRow label="ALCUNHA / VULGO" value={selectedPerson.alcunha} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <DetailRow label="RG" value={selectedPerson.rg} />
+                    <DetailRow label="CPF" value={selectedPerson.cpf} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <DetailRow label="ORCRIM" value={selectedPerson.orcrim} />
+                    <DetailRow label="SITUAÇÃO" value={selectedPerson.situacao} />
+                  </div>
+                  <DetailRow label="NOME DO PAI" value={selectedPerson.pai} />
+                  <DetailRow label="NOME DA MÃE" value={selectedPerson.mae} />
+                  <DetailRow label="ENDEREÇO" value={selectedPerson.endereco} />
+                </div>
                 <div className="pt-2">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">OBSERVAÇÕES</p>
-                  <p className="text-xs p-3 bg-slate-50 rounded-lg border border-slate-100 uppercase italic leading-relaxed text-slate-600 mt-1">{selectedPerson.observacoes || 'NENHUMA OBSERVAÇÃO REGISTRADA'}</p>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">OBSERVAÇÕES E ANTECEDENTES</p>
+                  <p className="text-[11px] p-4 bg-slate-50 rounded-xl border border-slate-100 uppercase italic leading-relaxed text-slate-700 shadow-inner min-h-[80px]">
+                    {selectedPerson.observacoes || 'NADA CONSTA'}
+                  </p>
                 </div>
               </div>
             </div>
