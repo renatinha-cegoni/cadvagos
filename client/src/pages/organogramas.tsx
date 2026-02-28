@@ -74,8 +74,8 @@ export default function Organogramas() {
     const newNode: OrganogramaNode = {
       id: `person-${person.id}-${Date.now()}`,
       type: 'person',
-      x: 2100, 
-      y: 2100,
+      x: 100, 
+      y: 100,
       data: person
     };
     setNodes(prev => [...prev, newNode]);
@@ -86,8 +86,8 @@ export default function Organogramas() {
     const newNode: OrganogramaNode = {
       id: `text-${Date.now()}`,
       type: 'text',
-      x: 2150,
-      y: 2150,
+      x: 150,
+      y: 150,
       data: { text: "Nova Caixa de Texto" }
     };
     setNodes(prev => [...prev, newNode]);
@@ -97,8 +97,8 @@ export default function Organogramas() {
     const newNode: OrganogramaNode = {
       id: `circle-${Date.now()}`,
       type: 'circle',
-      x: 2200,
-      y: 2200,
+      x: 200,
+      y: 200,
       data: {}
     };
     setNodes(prev => [...prev, newNode]);
@@ -126,28 +126,45 @@ export default function Organogramas() {
     setConnections(prev => prev.filter(c => c.id !== id));
   };
 
-  const exportPDF = async () => {
+  const generatePDF = async (viewOnly = false) => {
     if (!canvasRef.current) return;
     
     const originalZoom = zoom;
     setZoom(1);
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => setTimeout(r, 800));
 
-    const canvas = await html2canvas(canvasRef.current, { 
-      useCORS: true,
-      scale: 2,
-      backgroundColor: "#ffffff"
-    });
-    
-    setZoom(originalZoom);
-    
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`${organogramaNome || 'organograma'}.pdf`);
+    try {
+      const canvas = await html2canvas(canvasRef.current, { 
+        useCORS: true,
+        scale: 2,
+        backgroundColor: "#ffffff",
+        logging: false,
+        allowTaint: true,
+        windowWidth: 3000,
+        windowHeight: 3000
+      });
+      
+      setZoom(originalZoom);
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const canvasAspectRatio = canvas.height / canvas.width;
+      const pdfHeight = pdfWidth * canvasAspectRatio;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, Math.min(pdfHeight, 290));
+      
+      if (viewOnly) {
+        const blob = pdf.output('bloburl');
+        window.open(blob, '_blank');
+      } else {
+        pdf.save(`${organogramaNome || 'organograma'}.pdf`);
+      }
+    } catch (err) {
+      console.error(err);
+      setZoom(originalZoom);
+      toast({ title: "Erro", description: "Falha ao gerar PDF.", variant: "destructive" });
+    }
   };
 
   const handleSave = () => {
@@ -306,23 +323,28 @@ export default function Organogramas() {
 
             <div className="flex-1" />
             
-            <Button onClick={exportPDF} className="bg-slate-900 hover:bg-black text-white font-bold h-9">
-              <Download className="w-4 h-4 mr-2" /> EXPORTAR PDF (A4)
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => generatePDF(true)} variant="outline" className="border-slate-300 text-slate-700 font-bold h-9">
+                <Eye className="w-4 h-4 mr-2" /> VISUALIZAR PDF
+              </Button>
+              <Button onClick={() => generatePDF(false)} className="bg-slate-900 hover:bg-black text-white font-bold h-9">
+                <Download className="w-4 h-4 mr-2" /> GERAR PDF (A4)
+              </Button>
+            </div>
           </div>
 
-          {/* Canvas Area */}
+          {/* Canvas Area Container */}
           <div className="flex-1 relative overflow-auto bg-slate-200">
             <div 
               ref={canvasRef}
-              className="relative p-[2000px] origin-top-left"
+              className="relative origin-top-left bg-white shadow-inner"
               style={{ 
-                backgroundImage: 'radial-gradient(#cbd5e1 1.5px, transparent 1.5px)', 
-                backgroundSize: '40px 40px',
+                backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', 
+                backgroundSize: '20px 20px',
                 cursor: isAddingConnection ? 'crosshair' : 'default',
                 transform: `scale(${zoom})`,
-                minWidth: '5000px',
-                minHeight: '5000px'
+                width: '3000px',
+                height: '3000px',
               }}
               onClick={() => {
                 if (isAddingConnection) {
@@ -331,6 +353,42 @@ export default function Organogramas() {
                 }
               }}
             >
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
+                <defs>
+                  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                    <path d="M0,0 L0,10 L10,5 z" fill="#ef4444" />
+                  </marker>
+                </defs>
+                {connections.map((conn) => {
+                  const from = nodes.find(n => n.id === conn.from);
+                  const to = nodes.find(n => n.id === conn.to);
+                  if (!from || !to) return null;
+                  
+                  const getCenter = (n: OrganogramaNode) => {
+                    const w = n.type === 'person' ? 192 : n.type === 'text' ? 150 : 96;
+                    const h = n.type === 'person' ? 220 : n.type === 'text' ? 60 : 96;
+                    return { x: n.x + w/2, y: n.y + h/2 };
+                  };
+
+                  const c1 = getCenter(from);
+                  const c2 = getCenter(to);
+
+                  return (
+                    <g key={conn.id} className="pointer-events-auto cursor-pointer group/line" onClick={() => removeConnection(conn.id)}>
+                      <line 
+                        x1={c1.x} y1={c1.y}
+                        x2={c2.x} y2={c2.y}
+                        stroke="#ef4444"
+                        strokeWidth="5"
+                        markerEnd="url(#arrow)"
+                        className="group-hover/line:stroke-red-700 transition-colors drop-shadow-xl"
+                      />
+                      <circle cx={(c1.x+c2.x)/2} cy={(c1.y+c2.y)/2} r="8" className="fill-red-600 opacity-0 group-hover/line:opacity-100 shadow-lg" />
+                    </g>
+                  );
+                })}
+              </svg>
+
               {nodes.map(node => (
                 <Draggable 
                   key={node.id}
@@ -415,42 +473,6 @@ export default function Organogramas() {
                   </div>
                 </Draggable>
               ))}
-              
-              <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: 5000, minHeight: 5000 }}>
-                <defs>
-                  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-                    <path d="M0,0 L0,10 L10,5 z" fill="#ef4444" />
-                  </marker>
-                </defs>
-                {connections.map((conn) => {
-                  const from = nodes.find(n => n.id === conn.from);
-                  const to = nodes.find(n => n.id === conn.to);
-                  if (!from || !to) return null;
-                  
-                  const getCenter = (n: OrganogramaNode) => {
-                    const w = n.type === 'person' ? 192 : n.type === 'text' ? 150 : 96;
-                    const h = n.type === 'person' ? 220 : n.type === 'text' ? 60 : 96;
-                    return { x: n.x + w/2, y: n.y + h/2 };
-                  };
-
-                  const c1 = getCenter(from);
-                  const c2 = getCenter(to);
-
-                  return (
-                    <g key={conn.id} className="pointer-events-auto cursor-pointer group/line" onClick={() => removeConnection(conn.id)}>
-                      <line 
-                        x1={c1.x} y1={c1.y}
-                        x2={c2.x} y2={c2.y}
-                        stroke="#ef4444"
-                        strokeWidth="5"
-                        markerEnd="url(#arrow)"
-                        className="group-hover/line:stroke-red-700 transition-colors drop-shadow-xl"
-                      />
-                      <circle cx={(c1.x+c2.x)/2} cy={(c1.y+c2.y)/2} r="8" className="fill-red-600 opacity-0 group-hover/line:opacity-100 shadow-lg" />
-                    </g>
-                  );
-                })}
-              </svg>
             </div>
           </div>
         </div>
