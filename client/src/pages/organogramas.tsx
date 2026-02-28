@@ -5,7 +5,7 @@ import { useCadastros, useCreateOrganograma, useUpdateOrganograma, useOrganogram
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ArrowRight, Type, Download, Save, User, Eye, FilePlus, FolderOpen, Loader2, ZoomIn, ZoomOut, Circle } from "lucide-react";
+import { Plus, Trash2, ArrowRight, Type, Download, Save, User, Eye, FilePlus, FolderOpen, Loader2, ZoomIn, ZoomOut, Circle, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PasswordPrompt } from "@/components/password-prompt";
 import html2canvas from "html2canvas";
@@ -74,33 +74,34 @@ export default function Organogramas() {
     const newNode: OrganogramaNode = {
       id: `person-${person.id}-${Date.now()}`,
       type: 'person',
-      x: 100 / zoom,
-      y: 100 / zoom,
+      x: 2100, 
+      y: 2100,
       data: person
     };
-    setNodes([...nodes, newNode]);
+    setNodes(prev => [...prev, newNode]);
+    toast({ title: "Adicionado", description: `${person.nome} inserido no organograma.` });
   };
 
   const addText = () => {
     const newNode: OrganogramaNode = {
       id: `text-${Date.now()}`,
       type: 'text',
-      x: 150 / zoom,
-      y: 150 / zoom,
+      x: 2150,
+      y: 2150,
       data: { text: "Nova Caixa de Texto" }
     };
-    setNodes([...nodes, newNode]);
+    setNodes(prev => [...prev, newNode]);
   };
 
   const addCircle = () => {
     const newNode: OrganogramaNode = {
       id: `circle-${Date.now()}`,
       type: 'circle',
-      x: 200 / zoom,
-      y: 200 / zoom,
+      x: 2200,
+      y: 2200,
       data: {}
     };
-    setNodes([...nodes, newNode]);
+    setNodes(prev => [...prev, newNode]);
   };
 
   const startConnection = (id: string) => {
@@ -109,7 +110,7 @@ export default function Organogramas() {
       setConnectionStart(id);
       toast({ title: "Conexão", description: "Selecione o segundo elemento para conectar." });
     } else if (connectionStart !== id) {
-      setConnections([...connections, { id: `conn-${Date.now()}`, from: connectionStart, to: id }]);
+      setConnections(prev => [...prev, { id: `conn-${Date.now()}`, from: connectionStart, to: id }]);
       setConnectionStart(null);
       setIsAddingConnection(false);
       toast({ title: "Conectado", description: "Seta adicionada entre os elementos." });
@@ -117,22 +118,19 @@ export default function Organogramas() {
   };
 
   const removeNode = (id: string) => {
-    setNodes(nodes.filter(n => n.id !== id));
-    setConnections(connections.filter(c => c.from !== id && c.to !== id));
+    setNodes(prev => prev.filter(n => n.id !== id));
+    setConnections(prev => prev.filter(c => c.from !== id && c.to !== id));
   };
 
   const removeConnection = (id: string) => {
-    setConnections(connections.filter(c => c.id !== id));
+    setConnections(prev => prev.filter(c => c.id !== id));
   };
 
   const exportPDF = async () => {
     if (!canvasRef.current) return;
     
-    // Temporarily reset zoom for capture
     const originalZoom = zoom;
     setZoom(1);
-    
-    // Wait for state update
     await new Promise(r => setTimeout(r, 100));
 
     const canvas = await html2canvas(canvasRef.current, { 
@@ -216,12 +214,12 @@ export default function Organogramas() {
               onChange={(e) => setOrganogramaNome(e.target.value.toUpperCase())}
               className="h-9 text-sm font-bold border-slate-300"
             />
-            <div className="grid grid-cols-2 gap-2">
-              <Button onClick={novoOrganograma} variant="outline" size="sm" className="bg-white hover:bg-slate-50 text-blue-600 border-blue-100">
+            <div className="flex flex-col gap-2">
+              <Button onClick={novoOrganograma} variant="outline" size="sm" className="w-full bg-white hover:bg-slate-50 text-blue-600 border-blue-100 h-9">
                 <FilePlus className="w-4 h-4 mr-1" /> NOVO
               </Button>
-              <Button onClick={() => setOpenDialogOpen(true)} variant="outline" size="sm" className="bg-white text-amber-600 border-amber-100">
-                <FolderOpen className="w-4 h-4 mr-1" /> ABRIR
+              <Button onClick={() => setOpenDialogOpen(true)} variant="outline" size="sm" className="w-full bg-white text-amber-600 border-amber-100 h-9">
+                <Pencil className="w-4 h-4 mr-1" /> EDITAR
               </Button>
             </div>
             <Button onClick={handleSave} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 shadow-sm">
@@ -276,7 +274,11 @@ export default function Organogramas() {
                 <Type className="w-4 h-4 mr-1.5" /> TEXTO
               </Button>
               <Button 
-                onClick={() => setIsAddingConnection(!isAddingConnection)} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAddingConnection(!isAddingConnection);
+                  setConnectionStart(null);
+                }} 
                 variant={isAddingConnection ? "secondary" : "ghost"} 
                 size="sm"
                 className={`h-8 ${isAddingConnection ? "bg-white shadow-sm" : "text-slate-600"}`}
@@ -335,7 +337,7 @@ export default function Organogramas() {
                   position={{ x: node.x, y: node.y }}
                   scale={zoom}
                   onStop={(e, data) => {
-                    setNodes(nodes.map(n => n.id === node.id ? { ...n, x: data.x, y: data.y } : n));
+                    setNodes(prev => prev.map(n => n.id === node.id ? { ...n, x: data.x, y: data.y } : n));
                   }}
                 >
                   <div 
