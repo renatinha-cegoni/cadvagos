@@ -88,7 +88,7 @@ export default function Organogramas() {
       type: 'text',
       x: 150,
       y: 150,
-      data: { text: "Nova Caixa de Texto" }
+      data: { text: "NOVA CAIXA DE TEXTO" }
     };
     setNodes(prev => [...prev, newNode]);
   };
@@ -126,12 +126,16 @@ export default function Organogramas() {
     setConnections(prev => prev.filter(c => c.id !== id));
   };
 
+  const updateNodeText = (id: string, text: string) => {
+    setNodes(prev => prev.map(n => n.id === id ? { ...n, data: { ...n.data, text: text.toUpperCase() } } : n));
+  };
+
   const generatePDF = async (viewOnly = false) => {
     if (!canvasRef.current) return;
     
     const originalZoom = zoom;
     setZoom(1);
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 1000));
 
     try {
       const canvas = await html2canvas(canvasRef.current, { 
@@ -147,12 +151,19 @@ export default function Organogramas() {
       setZoom(originalZoom);
       
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const canvasAspectRatio = canvas.height / canvas.width;
-      const pdfHeight = pdfWidth * canvasAspectRatio;
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, Math.min(pdfHeight, 290));
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const imgProps = pdf.getImageProperties(imgData);
+      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, Math.min(imgHeight, pdfHeight));
       
       if (viewOnly) {
         const blob = pdf.output('bloburl');
@@ -328,7 +339,7 @@ export default function Organogramas() {
                 <Eye className="w-4 h-4 mr-2" /> VISUALIZAR PDF
               </Button>
               <Button onClick={() => generatePDF(false)} className="bg-slate-900 hover:bg-black text-white font-bold h-9">
-                <Download className="w-4 h-4 mr-2" /> GERAR PDF (A4)
+                <Download className="w-4 h-4 mr-2" /> EXPORTAR PDF (A4)
               </Button>
             </div>
           </div>
@@ -444,8 +455,9 @@ export default function Organogramas() {
                       <div className="bg-yellow-50 border-2 border-yellow-400 p-4 shadow-xl min-w-[150px] rounded-sm relative flex">
                         <textarea 
                           className="bg-transparent border-none resize-none w-full text-sm uppercase italic font-black focus:ring-0 p-0 text-slate-900 overflow-hidden"
-                          defaultValue={node.data.text}
+                          value={node.data.text}
                           onChange={(e) => {
+                            updateNodeText(node.id, e.target.value);
                             e.target.style.height = 'auto';
                             e.target.style.height = e.target.scrollHeight + 'px';
                           }}

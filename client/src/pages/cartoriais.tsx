@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Search, FileDown, FileText, UserX } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle } from "docx";
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, VerticalAlign } from "docx";
 import { saveAs } from "file-saver";
 
 export default function Cartoriais() {
@@ -77,26 +77,84 @@ export default function Cartoriais() {
               children: [
                 new TableCell({
                   width: { size: 30, type: WidthType.PERCENTAGE },
-                  children: [new Paragraph({ text: "[ FOTO ]", alignment: "center" })]
+                  verticalAlign: VerticalAlign.CENTER,
+                  children: [new Paragraph({ text: "[ FOTO ]", alignment: AlignmentType.CENTER })]
                 }),
                 new TableCell({
                   width: { size: 70, type: WidthType.PERCENTAGE },
                   children: [
-                    createRow("NOME: ", item.nome),
-                    createRow("ALCUNHA: ", item.alcunha),
-                    createRow("RG: ", item.rg),
-                    createRow("CPF: ", item.cpf),
-                    createRow("DN: ", item.dataNascimento),
-                    createRow("CD: ", item.codigoPreso),
-                    createRow("ORCRIM: ", item.orcrim),
-                    createRow("SITUAÇÃO: ", item.situacao),
-                    createRow("FILIAÇÃO: ", `${item.pai || ""} / ${item.mae || ""}`),
-                    createRow("END.: ", item.endereco),
-                    createRow("OC.: ", item.antecedentes),
-                    createRow("OBS.: ", item.observacoes),
+                    new Table({
+                      width: { size: 100, type: WidthType.PERCENTAGE },
+                      borders: {
+                         top: { style: BorderStyle.NONE },
+                         bottom: { style: BorderStyle.NONE },
+                         left: { style: BorderStyle.NONE },
+                         right: { style: BorderStyle.NONE },
+                         insideHorizontal: { style: BorderStyle.SINGLE, size: 1 },
+                         insideVertical: { style: BorderStyle.SINGLE, size: 1 },
+                      },
+                      rows: [
+                        new TableRow({
+                          children: [
+                             new TableCell({ children: [createRow("NOME: ", item.nome)] }),
+                             new TableCell({ width: { size: 35, type: WidthType.PERCENTAGE }, children: [createRow("RG: ", item.rg)] }),
+                          ]
+                        }),
+                        new TableRow({
+                          children: [
+                             new TableCell({ children: [createRow("ALCUNHA: ", item.alcunha)] }),
+                             new TableCell({ width: { size: 35, type: WidthType.PERCENTAGE }, children: [createRow("CPF: ", item.cpf)] }),
+                          ]
+                        }),
+                        new TableRow({
+                          children: [
+                             new TableCell({ children: [createRow("OrCrim: ", item.orcrim)] }),
+                             new TableCell({ width: { size: 35, type: WidthType.PERCENTAGE }, children: [createRow("DN: ", item.dataNascimento)] }),
+                          ]
+                        }),
+                        new TableRow({
+                          children: [
+                             new TableCell({ children: [createRow("SITUAÇÃO: ", item.situacao)] }),
+                             new TableCell({ width: { size: 35, type: WidthType.PERCENTAGE }, children: [createRow("CD: ", item.codigoPreso)] }),
+                          ]
+                        })
+                      ]
+                    })
                   ]
                 })
               ]
+            }),
+            new TableRow({
+               children: [
+                  new TableCell({
+                     columnSpan: 2,
+                     children: [createRow("FILIAÇÃO: ", `${item.pai || ""} / ${item.mae || ""}`)]
+                  })
+               ]
+            }),
+            new TableRow({
+               children: [
+                  new TableCell({
+                     columnSpan: 2,
+                     children: [createRow("END.: ", item.endereco)]
+                  })
+               ]
+            }),
+            new TableRow({
+               children: [
+                  new TableCell({
+                     columnSpan: 2,
+                     children: [createRow("OC.: ", item.antecedentes)]
+                  })
+               ]
+            }),
+            new TableRow({
+               children: [
+                  new TableCell({
+                     columnSpan: 2,
+                     children: [createRow("OBS.: ", item.observacoes)]
+                  })
+               ]
             })
           ]
         });
@@ -163,7 +221,7 @@ export default function Cartoriais() {
         <div className="lg:col-span-8">
           <div ref={reportRef} className="bg-white shadow-xl p-8 space-y-6 w-full max-w-[210mm] mx-auto">
             {selectedData.map((item) => (
-              <div key={item.id} className="border-2 border-black flex flex-col">
+              <div key={item.id} className="border-2 border-black flex flex-col page-break-inside-avoid">
                 <div className="flex border-b-2 border-black">
                   <div className="w-[30%] border-r-2 border-black p-2 flex items-center justify-center min-h-[150px]">
                     {item.imageUrl ? (
@@ -173,43 +231,43 @@ export default function Cartoriais() {
                     )}
                   </div>
                   <div className="w-[70%] flex flex-col">
-                    <div className="flex border-b-2 border-black">
-                      <div className="flex-1 p-1 border-r-2 border-black">
-                        <span className="font-bold text-[9pt] font-['Times_New_Roman']">NOME: </span>
-                        <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.nome}</span>
+                    <div className="flex border-b-2 border-black h-1/4">
+                      <div className="flex-1 p-1 border-r-2 border-black flex items-center overflow-hidden">
+                        <span className="font-bold text-[9pt] font-['Times_New_Roman'] whitespace-nowrap">NOME:&nbsp;</span>
+                        <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase truncate">{item.nome}</span>
                       </div>
-                      <div className="w-[35%] p-1">
-                        <span className="font-bold text-[9pt] font-['Times_New_Roman']">RG: </span>
+                      <div className="w-[35%] p-1 flex items-center">
+                        <span className="font-bold text-[9pt] font-['Times_New_Roman'] whitespace-nowrap">RG:&nbsp;</span>
                         <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.rg}</span>
                       </div>
                     </div>
-                    <div className="flex border-b-2 border-black">
-                      <div className="flex-1 p-1 border-r-2 border-black">
-                        <span className="font-bold text-[9pt] font-['Times_New_Roman']">ALCUNHA: </span>
-                        <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.alcunha}</span>
+                    <div className="flex border-b-2 border-black h-1/4">
+                      <div className="flex-1 p-1 border-r-2 border-black flex items-center overflow-hidden">
+                        <span className="font-bold text-[9pt] font-['Times_New_Roman'] whitespace-nowrap">ALCUNHA:&nbsp;</span>
+                        <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase truncate">{item.alcunha}</span>
                       </div>
-                      <div className="w-[35%] p-1">
-                        <span className="font-bold text-[9pt] font-['Times_New_Roman']">CPF: </span>
+                      <div className="w-[35%] p-1 flex items-center">
+                        <span className="font-bold text-[9pt] font-['Times_New_Roman'] whitespace-nowrap">CPF:&nbsp;</span>
                         <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.cpf}</span>
                       </div>
                     </div>
-                    <div className="flex border-b-2 border-black">
-                      <div className="flex-1 p-1 border-r-2 border-black">
-                        <span className="font-bold text-[9pt] font-['Times_New_Roman']">OrCrim: </span>
-                        <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.orcrim}</span>
+                    <div className="flex border-b-2 border-black h-1/4">
+                      <div className="flex-1 p-1 border-r-2 border-black flex items-center overflow-hidden">
+                        <span className="font-bold text-[9pt] font-['Times_New_Roman'] whitespace-nowrap">OrCrim:&nbsp;</span>
+                        <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase truncate">{item.orcrim}</span>
                       </div>
-                      <div className="w-[35%] p-1">
-                        <div className="font-bold text-[9pt] font-['Times_New_Roman']">DN:</div>
-                        <div className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.dataNascimento}</div>
+                      <div className="w-[35%] p-1 flex flex-col justify-center">
+                        <div className="font-bold text-[7pt] font-['Times_New_Roman'] leading-none">DN:</div>
+                        <div className="italic text-[9pt] font-['Times_New_Roman'] uppercase leading-none">{item.dataNascimento}</div>
                       </div>
                     </div>
-                    <div className="flex">
-                      <div className="flex-1 p-1 border-r-2 border-black">
-                        <span className="font-bold text-[9pt] font-['Times_New_Roman']">SITUAÇÃO: </span>
-                        <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.situacao}</span>
+                    <div className="flex h-1/4">
+                      <div className="flex-1 p-1 border-r-2 border-black flex items-center overflow-hidden">
+                        <span className="font-bold text-[9pt] font-['Times_New_Roman'] whitespace-nowrap">SITUAÇÃO:&nbsp;</span>
+                        <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase truncate">{item.situacao}</span>
                       </div>
-                      <div className="w-[35%] p-1">
-                        <span className="font-bold text-[9pt] font-['Times_New_Roman']">CD: </span>
+                      <div className="w-[35%] p-1 flex items-center">
+                        <span className="font-bold text-[9pt] font-['Times_New_Roman'] whitespace-nowrap">CD:&nbsp;</span>
                         <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.codigoPreso}</span>
                       </div>
                     </div>
@@ -223,11 +281,11 @@ export default function Cartoriais() {
                   <span className="font-bold text-[9pt] font-['Times_New_Roman']">END.: </span>
                   <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.endereco}</span>
                 </div>
-                <div className="p-1">
+                <div className="p-1 min-h-[40px]">
                   <span className="font-bold text-[9pt] font-['Times_New_Roman']">OC.: </span>
                   <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.antecedentes}</span>
                 </div>
-                <div className="border-t-2 border-black p-1">
+                <div className="border-t-2 border-black p-1 min-h-[40px]">
                   <span className="font-bold text-[9pt] font-['Times_New_Roman']">OBS.: </span>
                   <span className="italic text-[9pt] font-['Times_New_Roman'] uppercase">{item.observacoes}</span>
                 </div>
@@ -236,6 +294,13 @@ export default function Cartoriais() {
           </div>
         </div>
       </div>
+      <style>{`
+        @media print {
+          .page-break-inside-avoid {
+            page-break-inside: avoid;
+          }
+        }
+      `}</style>
     </Layout>
   );
 }
