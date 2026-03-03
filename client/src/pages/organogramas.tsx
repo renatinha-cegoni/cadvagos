@@ -152,7 +152,7 @@ export default function Organogramas() {
       
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
-        orientation: 'portrait',
+        orientation: 'landscape',
         unit: 'mm',
         format: 'a4'
       });
@@ -161,13 +161,20 @@ export default function Organogramas() {
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
       const imgProps = pdf.getImageProperties(imgData);
+      const imgWidth = pdfWidth;
       const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, Math.min(imgHeight, pdfHeight));
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, Math.min(imgHeight, pdfHeight));
       
       if (viewOnly) {
         const blob = pdf.output('bloburl');
-        window.open(blob, '_blank');
+        const iframe = `<iframe width='100%' height='100%' src='${blob}'></iframe>`;
+        const x = window.open();
+        if (x) {
+          x.document.open();
+          x.document.write(iframe);
+          x.document.close();
+        }
       } else {
         pdf.save(`${organogramaNome || 'organograma'}.pdf`);
       }
@@ -321,9 +328,6 @@ export default function Organogramas() {
               >
                 <ArrowRight className="w-4 h-4 mr-1.5" /> SETA
               </Button>
-              <Button onClick={addCircle} variant="ghost" size="sm" className="h-8 hover:bg-white hover:shadow-sm text-slate-600">
-                <Circle className="w-4 h-4 mr-1.5" /> CÍRCULO
-              </Button>
             </div>
 
             <div className="h-6 w-px bg-slate-200 mx-2" />
@@ -384,8 +388,8 @@ export default function Organogramas() {
                   if (!from || !to) return null;
                   
                   const getDimensions = (n: OrganogramaNode) => {
-                    const w = n.type === 'person' ? 192 : n.type === 'text' ? 150 : 96;
-                    const h = n.type === 'person' ? 220 : n.type === 'text' ? 60 : 96;
+                    const w = n.type === 'person' ? 113.38 : n.type === 'text' ? 150 : 96; // 3cm ~ 113.38px
+                    const h = n.type === 'person' ? 226.77 : n.type === 'text' ? 60 : 96;  // 6cm ~ 226.77px
                     return { w, h };
                   };
 
@@ -453,36 +457,36 @@ export default function Organogramas() {
                     }}
                   >
                     {node.type === 'person' ? (
-                      <Card className="w-48 bg-white border-2 border-slate-900 overflow-hidden shadow-2xl relative">
-                        <div className="h-32 bg-slate-100 border-b relative">
+                      <Card className="w-[113.38px] h-[226.77px] bg-white border-2 border-slate-900 overflow-hidden shadow-2xl relative">
+                        <div className="h-[120px] bg-slate-100 border-b relative">
                           {node.data.imageUrl ? (
                             <img src={node.data.imageUrl} className="w-full h-full object-cover" crossOrigin="anonymous" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-50"><User className="w-12 h-12 text-slate-300" /></div>
+                            <div className="w-full h-full flex items-center justify-center bg-slate-50"><User className="w-8 h-8 text-slate-300" /></div>
                           )}
                           <Button
                             size="icon"
                             variant="secondary"
-                            className="absolute top-2 right-2 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg bg-white/90 hover:bg-white"
+                            className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg bg-white/90 hover:bg-white"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedPerson(node.data);
                             }}
                           >
-                            <Eye className="h-5 w-5 text-blue-600" />
+                            <Eye className="h-3 w-3 text-blue-600" />
                           </Button>
                         </div>
-                        <div className="p-3.5 space-y-1 bg-white">
-                          <p className="text-[12px] font-bold truncate uppercase leading-tight text-slate-900">{node.data.nome}</p>
-                          <p className="text-[10px] italic truncate uppercase text-slate-500 font-bold">{node.data.alcunha || 'SEM ALCUNHA'}</p>
-                          <div className="pt-2 mt-2 border-t border-slate-100 flex flex-col gap-1 text-[9px] font-bold">
+                        <div className="p-2 space-y-1 bg-white">
+                          <p className="text-[10px] font-bold truncate uppercase leading-tight text-slate-900">{node.data.nome}</p>
+                          <p className="text-[8px] italic truncate uppercase text-slate-500 font-bold">{node.data.alcunha || 'SEM ALCUNHA'}</p>
+                          <div className="pt-1 mt-1 border-t border-slate-100 flex flex-col gap-0.5 text-[7px] font-bold">
                             <div className="flex justify-between">
                               <span className="text-slate-400">RG:</span>
                               <span className="text-slate-700">{node.data.rg}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-slate-400">ORCRIM:</span>
-                              <span className="text-blue-800">{node.data.orcrim}</span>
+                              <span className="text-blue-800 truncate max-w-[50px]">{node.data.orcrim}</span>
                             </div>
                           </div>
                         </div>
