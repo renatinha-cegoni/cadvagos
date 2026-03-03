@@ -88,18 +88,15 @@ app.use((req, res, next) => {
       await setupVite(httpServer, app);
     }
 
-    // 🔥 OBRIGATÓRIO para produção
-    const port = Number(process.env.PORT);
+    //// Porta compatível com qualquer ambiente (produção e dev)
+const port = Number(process.env.PORT) || 3000;
 
-    if (!port) {
-      throw new Error("PORT environment variable not defined");
-    }
+httpServer.listen(port, "0.0.0.0", () => {
+  console.log(`Server running on port ${port}`);
+}); 
 
-    httpServer.listen(port, "0.0.0.0", () => {
-      console.log(`Server running on port ${port}`);
-    });
-
-  } catch (error) {
+  
+} catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);
   }
