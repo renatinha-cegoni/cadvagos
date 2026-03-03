@@ -253,6 +253,14 @@ export default function Organogramas() {
             <Button onClick={handleSave} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 shadow-sm">
               <Save className="w-4 h-4 mr-2" /> SALVAR ORGANOGRAMA
             </Button>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => generatePDF(true)} variant="outline" className="w-full border-slate-300 text-slate-700 font-bold h-9 bg-white">
+                <Eye className="w-4 h-4 mr-2" /> VISUALIZAR PDF
+              </Button>
+              <Button onClick={() => generatePDF(false)} className="w-full bg-slate-900 hover:bg-black text-white font-bold h-9">
+                <Download className="w-4 h-4 mr-2" /> GERAR PDF (A4)
+              </Button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
@@ -375,26 +383,54 @@ export default function Organogramas() {
                   const to = nodes.find(n => n.id === conn.to);
                   if (!from || !to) return null;
                   
-                  const getCenter = (n: OrganogramaNode) => {
+                  const getDimensions = (n: OrganogramaNode) => {
                     const w = n.type === 'person' ? 192 : n.type === 'text' ? 150 : 96;
                     const h = n.type === 'person' ? 220 : n.type === 'text' ? 60 : 96;
-                    return { x: n.x + w/2, y: n.y + h/2 };
+                    return { w, h };
                   };
 
-                  const c1 = getCenter(from);
-                  const c2 = getCenter(to);
+                  const d1 = getDimensions(from);
+                  const d2 = getDimensions(to);
+
+                  const c1 = { x: from.x + d1.w / 2, y: from.y + d1.h / 2 };
+                  const c2 = { x: to.x + d2.w / 2, y: to.y + d2.h / 2 };
+
+                  // Calculate intersection with target node boundary
+                  const dx = c2.x - c1.x;
+                  const dy = c2.y - c1.y;
+                  const angle = Math.atan2(dy, dx);
+                  
+                  // Simple box intersection approximation
+                  const borderPadding = 5;
+                  const targetW = d2.w / 2 + borderPadding;
+                  const targetH = d2.h / 2 + borderPadding;
+                  
+                  let edgeX, edgeY;
+                  const absTan = Math.abs(Math.tan(angle));
+                  const boxTan = targetH / targetW;
+
+                  if (absTan < boxTan) {
+                    edgeX = targetW * Math.sign(dx);
+                    edgeY = targetW * Math.abs(Math.tan(angle)) * Math.sign(dy);
+                  } else {
+                    edgeX = targetH / Math.abs(Math.tan(angle)) * Math.sign(dx);
+                    edgeY = targetH * Math.sign(dy);
+                  }
+
+                  const targetX = c2.x - edgeX;
+                  const targetY = c2.y - edgeY;
 
                   return (
                     <g key={conn.id} className="pointer-events-auto cursor-pointer group/line" onClick={() => removeConnection(conn.id)}>
                       <line 
                         x1={c1.x} y1={c1.y}
-                        x2={c2.x} y2={c2.y}
+                        x2={targetX} y2={targetY}
                         stroke="#ef4444"
                         strokeWidth="5"
                         markerEnd="url(#arrow)"
                         className="group-hover/line:stroke-red-700 transition-colors drop-shadow-xl"
                       />
-                      <circle cx={(c1.x+c2.x)/2} cy={(c1.y+c2.y)/2} r="8" className="fill-red-600 opacity-0 group-hover/line:opacity-100 shadow-lg" />
+                      <circle cx={(c1.x + targetX) / 2} cy={(c1.y + targetY) / 2} r="8" className="fill-red-600 opacity-0 group-hover/line:opacity-100 shadow-lg" />
                     </g>
                   );
                 })}
