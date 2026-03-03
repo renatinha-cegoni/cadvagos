@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Draggable from "react-draggable";
 import { Layout } from "@/components/layout";
 import { useCadastros, useCreateOrganograma, useUpdateOrganograma, useOrganogramas, useDeleteOrganograma } from "@/hooks/use-cadastros";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ArrowRight, Type, Download, Save, User, Eye, FilePlus, FolderOpen, Loader2, ZoomIn, ZoomOut, Circle, Pencil } from "lucide-react";
+import { Plus, Trash2, ArrowRight, Type, Download, Save, User, Eye, FilePlus, FolderOpen, Loader2, ZoomIn, ZoomOut, Circle, Pencil, Maximize } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PasswordPrompt } from "@/components/password-prompt";
 import html2canvas from "html2canvas";
@@ -19,7 +19,7 @@ import {
 
 interface OrganogramaNode {
   id: string;
-  type: 'person' | 'text' | 'circle';
+  type: 'person' | 'text';
   x: number;
   y: number;
   data: any;
@@ -62,6 +62,17 @@ export default function Organogramas() {
   
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  const personCount = useMemo(() => nodes.filter(n => n.type === 'person').length, [nodes]);
+
+  // Dynamic scaling configuration
+  const cardScale = useMemo(() => {
+    if (personCount <= 2) return { w: 350, h: 500, fontSize: 'text-lg', labelSize: 'text-sm' };
+    if (personCount <= 5) return { w: 280, h: 420, fontSize: 'text-md', labelSize: 'text-xs' };
+    if (personCount <= 10) return { w: 200, h: 320, fontSize: 'text-sm', labelSize: 'text-[10px]' };
+    if (personCount <= 20) return { w: 150, h: 250, fontSize: 'text-xs', labelSize: 'text-[8px]' };
+    return { w: 120, h: 200, fontSize: 'text-[9px]', labelSize: 'text-[7px]' };
+  }, [personCount]);
+
   const novoOrganograma = () => {
     setNodes([]);
     setConnections([]);
@@ -74,8 +85,8 @@ export default function Organogramas() {
     const newNode: OrganogramaNode = {
       id: `person-${person.id}-${Date.now()}`,
       type: 'person',
-      x: 100, 
-      y: 100,
+      x: 50 + (nodes.length * 20), 
+      y: 50 + (nodes.length * 20),
       data: person
     };
     setNodes(prev => [...prev, newNode]);
@@ -89,17 +100,6 @@ export default function Organogramas() {
       x: 150,
       y: 150,
       data: { text: "NOVA CAIXA DE TEXTO" }
-    };
-    setNodes(prev => [...prev, newNode]);
-  };
-
-  const addCircle = () => {
-    const newNode: OrganogramaNode = {
-      id: `circle-${Date.now()}`,
-      type: 'circle',
-      x: 200,
-      y: 200,
-      data: {}
     };
     setNodes(prev => [...prev, newNode]);
   };
@@ -144,8 +144,8 @@ export default function Organogramas() {
         backgroundColor: "#ffffff",
         logging: false,
         allowTaint: true,
-        windowWidth: 3000,
-        windowHeight: 3000
+        width: canvasRef.current.scrollWidth,
+        height: canvasRef.current.scrollHeight
       });
       
       setZoom(originalZoom);
@@ -168,11 +168,10 @@ export default function Organogramas() {
       
       if (viewOnly) {
         const blob = pdf.output('bloburl');
-        const iframe = `<iframe width='100%' height='100%' src='${blob}'></iframe>`;
         const x = window.open();
         if (x) {
           x.document.open();
-          x.document.write(iframe);
+          x.document.write(`<iframe width='100%' height='100%' src='${blob}'></iframe>`);
           x.document.close();
         }
       } else {
@@ -190,12 +189,7 @@ export default function Organogramas() {
       toast({ title: "Erro", description: "Insira um nome para o organograma.", variant: "destructive" });
       return;
     }
-    
-    const saveData = {
-      nome: organogramaNome,
-      data: { nodes, connections }
-    };
-
+    const saveData = { nome: organogramaNome, data: { nodes, connections } };
     if (currentId) {
       updateMutation.mutate({ id: currentId, ...saveData }, {
         onSuccess: () => toast({ title: "Sucesso", description: "Organograma atualizado." })
@@ -237,6 +231,69 @@ export default function Organogramas() {
     setPromptOpen(true);
   };
 
+  const getDimensions = (n: OrganogramaNode) => {
+    if (n.type === 'text') return { w: 150, h: 60 };
+    return cardScale;
+  };
+
+  const renderPersonCard = (node: OrganogramaNode) => {
+    const isLarge = cardScale.w > 200;
+    const isSmall = cardScale.w < 140;
+
+    return (
+      <Card 
+        style={{ width: `${cardScale.w}px`, height: `${cardScale.h}px` }}
+        className="bg-white border-2 border-slate-900 overflow-hidden shadow-2xl relative flex flex-col transition-all duration-300"
+      >
+        <div className="flex-1 bg-slate-100 border-b relative overflow-hidden">
+          {node.data.imageUrl ? (
+            <img src={node.data.imageUrl} className="w-full h-full object-cover" crossOrigin="anonymous" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-slate-50">
+              <User className={isLarge ? "w-16 h-16 text-slate-200" : "w-8 h-8 text-slate-300"} />
+            </div>
+          )}
+          <Button
+            size="icon"
+            variant="secondary"
+            className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg bg-white/90 hover:bg-white"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedPerson(node.data);
+            }}
+          >
+            <Eye className="h-3 w-3 text-blue-600" />
+          </Button>
+        </div>
+        <div className={isLarge ? "p-4 space-y-2 bg-white" : "p-2 space-y-1 bg-white"}>
+          <p className={`${cardScale.fontSize} font-black truncate uppercase leading-tight text-slate-900`}>
+            {node.data.nome}
+          </p>
+          <p className={`${cardScale.labelSize} italic truncate uppercase text-slate-500 font-bold`}>
+            {node.data.alcunha || 'SEM ALCUNHA'}
+          </p>
+          
+          <div className={`mt-auto pt-1 border-t border-slate-100 flex flex-col gap-0.5 ${cardScale.labelSize} font-bold`}>
+            <div className="flex justify-between">
+              <span className="text-slate-400">RG:</span>
+              <span className="text-slate-700">{node.data.rg}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">ORCRIM:</span>
+              <span className="text-blue-800 truncate">{node.data.orcrim}</span>
+            </div>
+            {isLarge && (
+              <div className="flex justify-between">
+                <span className="text-slate-400">SITUAÇÃO:</span>
+                <span className="text-red-600 truncate">{node.data.situacao}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <Layout title="ORGANOGRAMAS">
       <div className="flex h-[calc(100vh-120px)] overflow-hidden">
@@ -272,22 +329,6 @@ export default function Organogramas() {
 
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
             <div>
-              <h3 className="font-bold text-[10px] mb-3 uppercase text-slate-400 tracking-widest border-b pb-1">Organogramas Salvos</h3>
-              <div className="space-y-1.5">
-                {isLoadingList ? (
-                  <div className="flex justify-center p-4"><Loader2 className="animate-spin w-4 h-4 text-slate-300" /></div>
-                ) : (
-                  savedOrganogramas?.slice(0, 5).map((org: any) => (
-                    <div key={org.id} onClick={() => handleOpen(org)} className="p-2 bg-white border border-slate-200 rounded cursor-pointer hover:border-blue-400 text-[10px] font-bold uppercase truncate transition-all">
-                      {org.nome}
-                    </div>
-                  ))
-                )}
-                <Button variant="link" className="p-0 h-auto text-[10px] uppercase font-bold text-slate-500" onClick={() => setOpenDialogOpen(true)}>Ver todos...</Button>
-              </div>
-            </div>
-
-            <div>
               <h3 className="font-bold text-[10px] mb-3 uppercase text-slate-400 tracking-widest border-b pb-1">Indivíduos no Banco</h3>
               <div className="space-y-2">
                 {cadastros?.map(p => (
@@ -309,7 +350,7 @@ export default function Organogramas() {
         </div>
 
         {/* Área Principal */}
-        <div className="flex-1 flex flex-col relative bg-slate-100">
+        <div className="flex-1 flex flex-col relative bg-slate-100 h-full w-full">
           {/* Toolbar Superior */}
           <div className="h-14 bg-white border-b flex items-center px-4 gap-3 shadow-sm z-20">
             <div className="flex bg-slate-100 p-1 rounded-lg border gap-1">
@@ -343,31 +384,21 @@ export default function Organogramas() {
                 <ZoomOut className="w-4 h-4" />
               </Button>
             </div>
-
-            <div className="flex-1" />
-            
-            <div className="flex gap-2">
-              <Button onClick={() => generatePDF(true)} variant="outline" className="border-slate-300 text-slate-700 font-bold h-9">
-                <Eye className="w-4 h-4 mr-2" /> VISUALIZAR PDF
-              </Button>
-              <Button onClick={() => generatePDF(false)} className="bg-slate-900 hover:bg-black text-white font-bold h-9">
-                <Download className="w-4 h-4 mr-2" /> EXPORTAR PDF (A4)
-              </Button>
-            </div>
           </div>
 
           {/* Canvas Area Container */}
-          <div className="flex-1 relative overflow-auto bg-slate-200">
+          <div className="flex-1 relative overflow-auto bg-slate-200 p-4">
             <div 
               ref={canvasRef}
-              className="relative origin-top-left bg-white shadow-inner"
+              className="relative origin-top-left bg-white shadow-inner mx-auto landscape-container flex flex-wrap content-start justify-center p-12 gap-12"
               style={{ 
                 backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', 
                 backgroundSize: '20px 20px',
                 cursor: isAddingConnection ? 'crosshair' : 'default',
                 transform: `scale(${zoom})`,
-                width: '3000px',
-                height: '3000px',
+                width: '100%',
+                minHeight: '100%',
+                aspectRatio: '297/210' // landscape A4 ratio
               }}
               onClick={() => {
                 if (isAddingConnection) {
@@ -387,24 +418,15 @@ export default function Organogramas() {
                   const to = nodes.find(n => n.id === conn.to);
                   if (!from || !to) return null;
                   
-                  const getDimensions = (n: OrganogramaNode) => {
-                    const w = n.type === 'person' ? 113.38 : n.type === 'text' ? 150 : 96; // 3cm ~ 113.38px
-                    const h = n.type === 'person' ? 226.77 : n.type === 'text' ? 60 : 96;  // 6cm ~ 226.77px
-                    return { w, h };
-                  };
-
-                  const d1 = getDimensions(from);
-                  const d2 = getDimensions(to);
+                  const d1 = from.type === 'person' ? cardScale : { w: 150, h: 60 };
+                  const d2 = to.type === 'person' ? cardScale : { w: 150, h: 60 };
 
                   const c1 = { x: from.x + d1.w / 2, y: from.y + d1.h / 2 };
                   const c2 = { x: to.x + d2.w / 2, y: to.y + d2.h / 2 };
 
-                  // Calculate intersection with target node boundary
                   const dx = c2.x - c1.x;
                   const dy = c2.y - c1.y;
                   const angle = Math.atan2(dy, dx);
-                  
-                  // Simple box intersection approximation
                   const borderPadding = 5;
                   const targetW = d2.w / 2 + borderPadding;
                   const targetH = d2.h / 2 + borderPadding;
@@ -456,42 +478,7 @@ export default function Organogramas() {
                       startConnection(node.id);
                     }}
                   >
-                    {node.type === 'person' ? (
-                      <Card className="w-[113.38px] h-[226.77px] bg-white border-2 border-slate-900 overflow-hidden shadow-2xl relative">
-                        <div className="h-[120px] bg-slate-100 border-b relative">
-                          {node.data.imageUrl ? (
-                            <img src={node.data.imageUrl} className="w-full h-full object-cover" crossOrigin="anonymous" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-50"><User className="w-8 h-8 text-slate-300" /></div>
-                          )}
-                          <Button
-                            size="icon"
-                            variant="secondary"
-                            className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg bg-white/90 hover:bg-white"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedPerson(node.data);
-                            }}
-                          >
-                            <Eye className="h-3 w-3 text-blue-600" />
-                          </Button>
-                        </div>
-                        <div className="p-2 space-y-1 bg-white">
-                          <p className="text-[10px] font-bold truncate uppercase leading-tight text-slate-900">{node.data.nome}</p>
-                          <p className="text-[8px] italic truncate uppercase text-slate-500 font-bold">{node.data.alcunha || 'SEM ALCUNHA'}</p>
-                          <div className="pt-1 mt-1 border-t border-slate-100 flex flex-col gap-0.5 text-[7px] font-bold">
-                            <div className="flex justify-between">
-                              <span className="text-slate-400">RG:</span>
-                              <span className="text-slate-700">{node.data.rg}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-slate-400">ORCRIM:</span>
-                              <span className="text-blue-800 truncate max-w-[50px]">{node.data.orcrim}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    ) : node.type === 'text' ? (
+                    {node.type === 'person' ? renderPersonCard(node) : (
                       <div className="bg-yellow-50 border-2 border-yellow-400 p-4 shadow-xl min-w-[150px] rounded-sm relative flex">
                         <textarea 
                           className="bg-transparent border-none resize-none w-full text-sm uppercase italic font-black focus:ring-0 p-0 text-slate-900 overflow-hidden"
@@ -508,8 +495,6 @@ export default function Organogramas() {
                           rows={1}
                         />
                       </div>
-                    ) : (
-                      <div className="w-24 h-24 border-4 border-slate-900 rounded-full bg-white/20 shadow-xl backdrop-blur-sm" />
                     )}
                     <Button 
                       size="icon"
@@ -530,27 +515,20 @@ export default function Organogramas() {
         </div>
       </div>
       
-      {/* List Dialog */}
+      {/* Dialogs remain same... */}
       <Dialog open={openDialogOpen} onOpenChange={setOpenDialogOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="uppercase tracking-tight font-bold">Gerenciar Organogramas</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle className="uppercase tracking-tight font-bold">Gerenciar Organogramas</DialogTitle></DialogHeader>
           <div className="space-y-2 mt-4 max-h-96 overflow-y-auto pr-2">
-            {isLoadingList ? (
-              <div className="flex justify-center p-8"><Loader2 className="animate-spin text-blue-600" /></div>
-            ) : savedOrganogramas?.length === 0 ? (
-              <p className="text-center text-slate-500 py-8 text-sm italic">Nenhum organograma encontrado.</p>
-            ) : (
+            {isLoadingList ? (<div className="flex justify-center p-8"><Loader2 className="animate-spin text-blue-600" /></div>) : 
+            savedOrganogramas?.length === 0 ? (<p className="text-center text-slate-500 py-8 text-sm italic">Nenhum organograma encontrado.</p>) : (
               savedOrganogramas?.map((org: any) => (
                 <div key={org.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-all group">
                   <div className="flex-1 cursor-pointer" onClick={() => handleOpen(org)}>
                     <p className="font-bold text-sm uppercase text-slate-800 tracking-tight">{org.nome}</p>
                     <p className="text-[10px] text-slate-400 font-medium">{new Date(org.createdAt).toLocaleString()}</p>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); handleDelete(org.id); }}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <Button variant="ghost" size="icon" className="text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); handleDelete(org.id); }}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               ))
             )}
@@ -558,44 +536,26 @@ export default function Organogramas() {
         </DialogContent>
       </Dialog>
 
-      {/* Person Detail Dialog */}
       <Dialog open={!!selectedPerson} onOpenChange={() => setSelectedPerson(null)}>
         <DialogContent className="max-w-2xl bg-white border-none shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="uppercase border-b pb-4 tracking-tighter text-xl font-black text-slate-900">Perfil Criminal Detalhado</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle className="uppercase border-b pb-4 tracking-tighter text-xl font-black text-slate-900">Perfil Criminal Detalhado</DialogTitle></DialogHeader>
           {selectedPerson && (
             <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pt-4">
               <div className="md:col-span-4">
                 <div className="aspect-[3/4] bg-slate-50 rounded-2xl overflow-hidden border-4 border-slate-100 shadow-inner flex items-center justify-center">
-                  {selectedPerson.imageUrl ? (
-                    <img src={selectedPerson.imageUrl} className="w-full h-full object-cover" crossOrigin="anonymous" />
-                  ) : (
-                    <User className="w-24 h-24 text-slate-200" />
-                  )}
+                  {selectedPerson.imageUrl ? (<img src={selectedPerson.imageUrl} className="w-full h-full object-cover" crossOrigin="anonymous" />) : (<User className="w-24 h-24 text-slate-200" />)}
                 </div>
               </div>
               <div className="md:col-span-8 space-y-4">
                 <div className="grid grid-cols-1 gap-2">
-                  <DetailRow label="NOME COMPLETO" value={selectedPerson.nome} />
-                  <DetailRow label="ALCUNHA / VULGO" value={selectedPerson.alcunha} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <DetailRow label="RG" value={selectedPerson.rg} />
-                    <DetailRow label="CPF" value={selectedPerson.cpf} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <DetailRow label="ORCRIM" value={selectedPerson.orcrim} />
-                    <DetailRow label="SITUAÇÃO" value={selectedPerson.situacao} />
-                  </div>
-                  <DetailRow label="NOME DO PAI" value={selectedPerson.pai} />
-                  <DetailRow label="NOME DA MÃE" value={selectedPerson.mae} />
-                  <DetailRow label="ENDEREÇO" value={selectedPerson.endereco} />
+                  <DetailRow label="NOME COMPLETO" value={selectedPerson.nome} /><DetailRow label="ALCUNHA / VULGO" value={selectedPerson.alcunha} />
+                  <div className="grid grid-cols-2 gap-4"><DetailRow label="RG" value={selectedPerson.rg} /><DetailRow label="CPF" value={selectedPerson.cpf} /></div>
+                  <div className="grid grid-cols-2 gap-4"><DetailRow label="ORCRIM" value={selectedPerson.orcrim} /><DetailRow label="SITUAÇÃO" value={selectedPerson.situacao} /></div>
+                  <DetailRow label="NOME DO PAI" value={selectedPerson.pai} /><DetailRow label="NOME DA MÃE" value={selectedPerson.mae} /><DetailRow label="ENDEREÇO" value={selectedPerson.endereco} />
                 </div>
                 <div className="pt-2">
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">OBSERVAÇÕES E ANTECEDENTES</p>
-                  <p className="text-[11px] p-4 bg-slate-50 rounded-xl border border-slate-100 uppercase italic leading-relaxed text-slate-700 shadow-inner min-h-[80px]">
-                    {selectedPerson.observacoes || 'NADA CONSTA'}
-                  </p>
+                  <p className="text-[11px] p-4 bg-slate-50 rounded-xl border border-slate-100 uppercase italic leading-relaxed text-slate-700 shadow-inner min-h-[80px]">{selectedPerson.observacoes || 'NADA CONSTA'}</p>
                 </div>
               </div>
             </div>
@@ -604,12 +564,8 @@ export default function Organogramas() {
       </Dialog>
 
       <PasswordPrompt 
-        open={promptOpen} 
-        onOpenChange={setPromptOpen} 
-        onSuccess={() => {
-          if (pendingAction) pendingAction();
-          setPendingAction(null);
-        }}
+        open={promptOpen} onOpenChange={setPromptOpen} 
+        onSuccess={() => { if (pendingAction) pendingAction(); setPendingAction(null); }}
         actionName="Modificar Organograma"
       />
     </Layout>
