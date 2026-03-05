@@ -11,11 +11,11 @@ import { PasswordPrompt } from "@/components/password-prompt";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface OrganogramaNode {
   id: string;
@@ -64,11 +64,16 @@ export default function Organogramas() {
 
   const personCount = useMemo(() => nodes.filter(n => n.type === 'person').length, [nodes]);
 
+  const [cardWidth, setCardWidth] = useState(120);
+  const [cardHeight, setCardHeight] = useState(200);
+
   // Dynamic scaling configuration
-  const cardScale = useMemo(() => {
-    if (personCount <= 10) return { w: 120, h: 200, fontSize: 'text-[9px]', labelSize: 'text-[7px]' };
-    return { w: 70, h: 160, fontSize: 'text-[7px]', labelSize: 'text-[5px]' };
-  }, [personCount]);
+  const cardScale = useMemo(() => ({
+    w: cardWidth,
+    h: cardHeight,
+    fontSize: cardWidth > 100 ? 'text-[9px]' : 'text-[7px]',
+    labelSize: cardWidth > 100 ? 'text-[7px]' : 'text-[5px]'
+  }), [cardWidth, cardHeight]);
 
   const novoOrganograma = () => {
     setNodes([]);
@@ -132,7 +137,7 @@ export default function Organogramas() {
     
     const originalZoom = zoom;
     setZoom(1);
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 1500)); // Increased wait for layout/images
 
     try {
       const canvas = await html2canvas(canvasRef.current, { 
@@ -142,33 +147,46 @@ export default function Organogramas() {
         logging: false,
         allowTaint: true,
         width: canvasRef.current.scrollWidth,
-        height: canvasRef.current.scrollHeight
+        height: canvasRef.current.scrollHeight,
+        onclone: (clonedDoc) => {
+          // Ensure all images are loaded in the clone
+          const images = clonedDoc.getElementsByTagName('img');
+          for (let i = 0; i < images.length; i++) {
+            images[i].src = images[i].src; 
+          }
+        }
       });
       
       setZoom(originalZoom);
       
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png', 1.0);
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
-        format: 'a4'
+        format: 'a4',
+        compress: true
       });
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
       const imgProps = pdf.getImageProperties(imgData);
-      const imgWidth = pdfWidth;
-      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const ratio = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
+      const imgWidth = imgProps.width * ratio;
+      const imgHeight = imgProps.height * ratio;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, Math.min(imgHeight, pdfHeight));
+      // Center on page
+      const x = (pdfWidth - imgWidth) / 2;
+      const y = (pdfHeight - imgHeight) / 2;
+      
+      pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight, undefined, 'FAST');
       
       if (viewOnly) {
         const blob = pdf.output('bloburl');
         const x = window.open();
         if (x) {
           x.document.open();
-          x.document.write(`<iframe width='100%' height='100%' src='${blob}'></iframe>`);
+          x.document.write(`<iframe width='100%' height='100%' src='${blob}' style='border:none'></iframe>`);
           x.document.close();
         }
       } else {
@@ -262,28 +280,28 @@ export default function Organogramas() {
             <Eye className="h-3 w-3 text-blue-600" />
           </Button>
         </div>
-        <div className={isLarge ? "p-4 space-y-2 bg-white" : "p-1.5 space-y-0.5 bg-white"}>
-          <p className={`${cardScale.fontSize} font-black truncate uppercase leading-tight text-slate-900`}>
+        <div className={isLarge ? "p-4 space-y-2 bg-white" : "p-1.5 space-y-0.5 bg-white overflow-hidden"}>
+          <p className={`${cardScale.fontSize} font-black uppercase leading-tight text-slate-900 break-words whitespace-pre-wrap`}>
             {node.data.nome}
           </p>
-          <p className={`${cardScale.labelSize} italic truncate uppercase text-slate-500 font-bold`}>
+          <p className={`${cardScale.labelSize} italic uppercase text-slate-500 font-bold break-words whitespace-pre-wrap`}>
             {node.data.alcunha || 'SEM ALCUNHA'}
           </p>
           
           <div className={`mt-auto pt-0.5 border-t border-slate-100 flex flex-col gap-0.5 ${cardScale.labelSize} font-bold`}>
-            <div className="flex justify-between">
-              <span className="text-slate-400">RG:</span>
-              <span className="text-slate-700">{node.data.rg}</span>
+            <div className="flex justify-between items-center gap-1">
+              <span className="text-slate-400 shrink-0">RG:</span>
+              <span className="text-slate-700 truncate">{node.data.rg}</span>
             </div>
             {isLarge && (
-              <div className="flex justify-between">
-                <span className="text-slate-400">ORCRIM:</span>
+              <div className="flex justify-between items-center gap-1">
+                <span className="text-slate-400 shrink-0">ORCRIM:</span>
                 <span className="text-blue-800 truncate">{node.data.orcrim}</span>
               </div>
             )}
             {isLarge && (
-              <div className="flex justify-between">
-                <span className="text-slate-400">SITUAÇÃO:</span>
+              <div className="flex justify-between items-center gap-1">
+                <span className="text-slate-400 shrink-0">SITUAÇÃO:</span>
                 <span className="text-red-600 truncate">{node.data.situacao}</span>
               </div>
             )}
@@ -299,6 +317,26 @@ export default function Organogramas() {
         {/* Sidebar Esquerda Fixa */}
         <div className="w-72 bg-slate-50 border-r flex flex-col shadow-inner z-30">
           <div className="p-4 space-y-3 border-b bg-white">
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Largura (px)</label>
+                <Input 
+                  type="number" 
+                  value={cardWidth} 
+                  onChange={(e) => setCardWidth(Number(e.target.value))}
+                  className="h-8 text-[10px] font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Altura (px)</label>
+                <Input 
+                  type="number" 
+                  value={cardHeight} 
+                  onChange={(e) => setCardHeight(Number(e.target.value))}
+                  className="h-8 text-[10px] font-bold"
+                />
+              </div>
+            </div>
             <Input
               placeholder="NOME DO ORGANOGRAMA"
               value={organogramaNome}
@@ -306,11 +344,72 @@ export default function Organogramas() {
               className="h-9 text-sm font-bold border-slate-300"
             />
             <div className="flex flex-col gap-2">
-              <Button onClick={novoOrganograma} variant="outline" size="sm" className="w-full bg-white hover:bg-slate-50 text-blue-600 border-blue-100 h-9">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full bg-white text-blue-600 border-blue-100 h-9 font-bold">
+                    <FolderOpen className="w-4 h-4 mr-1" /> ORGANOGRAMAS
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64 max-h-80 overflow-y-auto">
+                  {savedOrganogramas?.length === 0 ? (
+                    <DropdownMenuItem disabled>Nenhum salvo</DropdownMenuItem>
+                  ) : (
+                    savedOrganogramas?.map((org: any) => (
+                      <DropdownMenuItem 
+                        key={org.id} 
+                        onClick={() => handleOpen(org)}
+                        className="flex flex-col items-start gap-0.5 cursor-pointer"
+                      >
+                        <span className="font-bold uppercase text-[10px]">{org.nome}</span>
+                        <span className="text-[8px] text-slate-400">{new Date(org.createdAt).toLocaleDateString()}</span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full bg-white text-slate-700 border-slate-200 h-9 font-bold">
+                    <User className="w-4 h-4 mr-1" /> INDIVÍDUOS
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64 max-h-80 overflow-y-auto">
+                  {cadastros?.map(p => (
+                    <DropdownMenuItem 
+                      key={p.id} 
+                      className="flex items-center justify-between gap-2 p-2 cursor-default"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold truncate uppercase">{p.nome}</p>
+                        <p className="text-[8px] text-slate-400 truncate uppercase">{p.alcunha || 'Sem vulgo'}</p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-6 w-6 text-blue-500"
+                          onClick={() => setSelectedPerson(p)}
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-6 w-6 text-green-500"
+                          onClick={() => addPerson(p)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button onClick={novoOrganograma} variant="outline" size="sm" className="w-full bg-white hover:bg-slate-50 text-slate-400 border-slate-100 h-9">
                 <FilePlus className="w-4 h-4 mr-1" /> NOVO
-              </Button>
-              <Button onClick={() => setOpenDialogOpen(true)} variant="outline" size="sm" className="w-full bg-white text-amber-600 border-amber-100 h-9">
-                <Pencil className="w-4 h-4 mr-1" /> EDITAR
               </Button>
             </div>
             <Button onClick={handleSave} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 shadow-sm">
@@ -426,9 +525,10 @@ export default function Organogramas() {
                   const dx = c2.x - c1.x;
                   const dy = c2.y - c1.y;
                   const angle = Math.atan2(dy, dx);
-                  const borderPadding = 5;
-                  const targetW = d2.w / 2 + borderPadding;
-                  const targetH = d2.h / 2 + borderPadding;
+                  
+                  // Calculate intersection with target node boundary
+                  const targetW = d2.w / 2;
+                  const targetH = d2.h / 2;
                   
                   let edgeX, edgeY;
                   const absTan = Math.abs(Math.tan(angle));
@@ -438,7 +538,7 @@ export default function Organogramas() {
                     edgeX = targetW * Math.sign(dx);
                     edgeY = targetW * Math.abs(Math.tan(angle)) * Math.sign(dy);
                   } else {
-                    edgeX = targetH / Math.abs(Math.tan(angle)) * Math.sign(dx);
+                    edgeX = (targetH / Math.abs(Math.tan(angle))) * Math.sign(dx);
                     edgeY = targetH * Math.sign(dy);
                   }
 

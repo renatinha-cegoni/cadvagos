@@ -1,0 +1,163 @@
+Atue como um engenheiro de software sênior responsável por revisar e melhorar especificamente a funcionalidade da aba **Organogramas** deste sistema.
+
+IMPORTANTE
+Não altere funcionalidades de outras partes do sistema.
+Faça apenas os ajustes solicitados abaixo.
+Caso precise alterar código estrutural, documente a alteração com comentários no código.
+
+---
+
+OBJETIVO
+
+Melhorar o funcionamento do módulo de **Organogramas**, corrigindo problemas de layout, conexões entre cards e geração de PDF.
+
+---
+
+TAREFA 1 — AJUSTE DAS SETAS ENTRE INDIVÍDUOS
+
+A função de conexão entre indivíduos precisa ser corrigida.
+
+Requisitos:
+
+1. A seta deve sair do card de origem e terminar exatamente **na borda do card de destino**, e não no centro.
+2. O cálculo da posição da seta deve considerar:
+
+   * posição X e Y do card
+   * largura e altura do card
+3. A seta não pode atravessar o interior do card de destino.
+4. O ponto final da seta deve ser calculado dinamicamente com base nas dimensões do card.
+
+Objetivo:
+Garantir que as conexões visuais do organograma fiquem limpas e precisas.
+
+---
+
+TAREFA 2 — CAMPO PARA DEFINIR TAMANHO DOS CARDS
+
+Adicionar um campo de configuração no módulo de organogramas para definir manualmente o tamanho dos cards.
+
+Requisitos:
+
+Criar campos configuráveis para:
+
+* largura do card
+* altura do card
+
+Esses valores devem atualizar dinamicamente o layout do organograma.
+
+Exemplo esperado:
+
+Largura do card: [ 120 ] px
+Altura do card: [ 200 ] px
+
+O sistema deve aplicar automaticamente o novo tamanho aos cards exibidos.
+
+---
+
+TAREFA 3 — AJUSTE DA CAIXA DE TEXTO
+
+A caixa de texto lateral dos cards precisa ser ajustada.
+
+Requisitos:
+
+1. A largura da caixa deve ser **proporcional ao tamanho do card**.
+2. O texto deve ter **quebra automática de linha (word wrap)**.
+3. Todo o texto precisa aparecer corretamente quando o PDF for gerado.
+4. Evitar overflow de texto fora do card.
+
+Objetivo:
+Garantir leitura completa das informações.
+
+---
+
+TAREFA 4 — CORREÇÃO DA GERAÇÃO DE PDF
+
+Atualmente o PDF está sendo gerado com problemas:
+
+* fotos cortadas
+* textos cortados
+* cards incompletos
+
+Corrigir o processo de geração de PDF garantindo que:
+
+1. Todos os cards apareçam completamente.
+2. As imagens não sejam cortadas.
+3. O layout do organograma seja preservado.
+4. O dimensionamento respeite a escala correta.
+5. Todo conteúdo visível na tela apareça no PDF.
+
+Verificar possíveis problemas como:
+
+* escala incorreta
+* canvas mal dimensionado
+* renderização antes do layout finalizar
+* margens inadequadas
+
+---
+
+TAREFA 5 — BOTÃO PARA LISTA DE ORGANOGRAMAS
+
+Criar um botão com **lista suspensa** que permita visualizar os organogramas já criados.
+
+Funcionalidade:
+
+Botão:
+"Organogramas"
+
+Ao clicar deve abrir uma lista contendo:
+
+* nome do organograma
+* data de criação (se disponível)
+
+Ao selecionar um item:
+o organograma correspondente deve ser carregado na tela.
+
+---
+
+TAREFA 6 — BOTÃO PARA LISTA DE INDIVÍDUOS
+
+Criar outro botão com **lista suspensa** chamado:
+
+"Indivíduos"
+
+Esse botão deve mostrar todos os indivíduos cadastrados no sistema.
+
+Cada item da lista deve permitir:
+
+* visualizar o indivíduo
+* adicionar o indivíduo ao organograma
+
+---
+
+TAREFA 7 — CORREÇÃO DA FUNÇÃO "VISUALIZAR PDF"
+
+A função **Visualizar PDF** não está funcionando.
+
+Corrigir para que:
+
+1. O botão abra uma visualização do PDF antes do download.
+2. O preview mostre exatamente como o arquivo final será gerado.
+3. O PDF seja renderizado corretamente com todos os cards.
+
+---
+
+REQUISITOS DE QUALIDADE
+
+Garantir:
+
+* código limpo e organizado
+* compatibilidade com o restante do sistema
+* nenhuma quebra de funcionalidade existente
+* comentários explicando alterações importantes
+
+---
+
+ENTREGA ESPERADA
+
+1. Correção das setas entre cards
+2. Campo configurável para tamanho dos cards
+3. Ajuste da caixa de texto com quebra automática
+4. Correção da geração de PDF
+5. Botão com lista de organogramas
+6. Botão com lista de indivíduos
+7. Função de visualizar PDF funcionando corretamente
