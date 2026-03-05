@@ -13,8 +13,7 @@ export function serveStatic(app: express.Application) {
   app.use(express.static(publicPath));
 
   // Fallback: serve index.html para qualquer rota não encontrada
- // Fallback para qualquer rota não encontrada
-app.get("/*", (_req, res) => {
-  res.sendFile(path.join(publicPath, "index.html"));
-});
-  
+  app.get("/*", (_req, res) => {
+    res.sendFile(path.join(publicPath, "index.html"));
+  });
+}
