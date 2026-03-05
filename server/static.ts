@@ -1,8 +1,6 @@
-import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Corrige __dirname para ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -17,3 +15,4 @@ export function serveStatic(app: express.Application) {
     res.sendFile(path.join(publicPath, "index.html"));
   });
 }
+
