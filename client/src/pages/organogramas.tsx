@@ -66,11 +66,8 @@ export default function Organogramas() {
 
   // Dynamic scaling configuration
   const cardScale = useMemo(() => {
-    if (personCount <= 2) return { w: 350, h: 500, fontSize: 'text-lg', labelSize: 'text-sm' };
-    if (personCount <= 5) return { w: 280, h: 420, fontSize: 'text-md', labelSize: 'text-xs' };
-    if (personCount <= 10) return { w: 200, h: 320, fontSize: 'text-sm', labelSize: 'text-[10px]' };
-    if (personCount <= 20) return { w: 150, h: 250, fontSize: 'text-xs', labelSize: 'text-[8px]' };
-    return { w: 120, h: 200, fontSize: 'text-[9px]', labelSize: 'text-[7px]' };
+    if (personCount <= 10) return { w: 120, h: 200, fontSize: 'text-[9px]', labelSize: 'text-[7px]' };
+    return { w: 70, h: 160, fontSize: 'text-[7px]', labelSize: 'text-[5px]' };
   }, [personCount]);
 
   const novoOrganograma = () => {
@@ -265,7 +262,7 @@ export default function Organogramas() {
             <Eye className="h-3 w-3 text-blue-600" />
           </Button>
         </div>
-        <div className={isLarge ? "p-4 space-y-2 bg-white" : "p-2 space-y-1 bg-white"}>
+        <div className={isLarge ? "p-4 space-y-2 bg-white" : "p-1.5 space-y-0.5 bg-white"}>
           <p className={`${cardScale.fontSize} font-black truncate uppercase leading-tight text-slate-900`}>
             {node.data.nome}
           </p>
@@ -273,15 +270,17 @@ export default function Organogramas() {
             {node.data.alcunha || 'SEM ALCUNHA'}
           </p>
           
-          <div className={`mt-auto pt-1 border-t border-slate-100 flex flex-col gap-0.5 ${cardScale.labelSize} font-bold`}>
+          <div className={`mt-auto pt-0.5 border-t border-slate-100 flex flex-col gap-0.5 ${cardScale.labelSize} font-bold`}>
             <div className="flex justify-between">
               <span className="text-slate-400">RG:</span>
               <span className="text-slate-700">{node.data.rg}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400">ORCRIM:</span>
-              <span className="text-blue-800 truncate">{node.data.orcrim}</span>
-            </div>
+            {isLarge && (
+              <div className="flex justify-between">
+                <span className="text-slate-400">ORCRIM:</span>
+                <span className="text-blue-800 truncate">{node.data.orcrim}</span>
+              </div>
+            )}
             {isLarge && (
               <div className="flex justify-between">
                 <span className="text-slate-400">SITUAÇÃO:</span>
