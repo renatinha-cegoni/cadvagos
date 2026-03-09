@@ -5,7 +5,7 @@ import { useCadastros, useCreateOrganograma, useUpdateOrganograma, useOrganogram
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ArrowRight, Type, Download, Save, User, Eye, FilePlus, FolderOpen, Loader2, ZoomIn, ZoomOut, Circle, Pencil, Maximize } from "lucide-react";
+import { Plus, Trash2, ArrowRight, Type, Download, Save, User, Eye, FilePlus, FolderOpen, Loader2, ZoomIn, ZoomOut, Circle, Pencil, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PasswordPrompt } from "@/components/password-prompt";
 import html2canvas from "html2canvas";
@@ -138,12 +138,12 @@ export default function Organogramas() {
     setNodes(prev => prev.map(n => n.id === id ? { ...n, data: { ...n.data, text: text.toUpperCase() } } : n));
   };
 
-  const generatePDF = async (viewOnly = false) => {
+  const generatePDF = async () => {
     if (!canvasRef.current) return;
     
     const originalZoom = zoom;
     setZoom(1);
-    await new Promise(r => setTimeout(r, 1500)); // Increased wait for layout/images
+    await new Promise(r => setTimeout(r, 1500));
 
     try {
       const canvas = await html2canvas(canvasRef.current, { 
@@ -155,7 +155,6 @@ export default function Organogramas() {
         width: canvasRef.current.scrollWidth,
         height: canvasRef.current.scrollHeight,
         onclone: (clonedDoc) => {
-          // Ensure all images are loaded in the clone
           const images = clonedDoc.getElementsByTagName('img');
           for (let i = 0; i < images.length; i++) {
             images[i].src = images[i].src; 
@@ -181,27 +180,79 @@ export default function Organogramas() {
       const imgWidth = imgProps.width * ratio;
       const imgHeight = imgProps.height * ratio;
       
-      // Center on page
       const x = (pdfWidth - imgWidth) / 2;
       const y = (pdfHeight - imgHeight) / 2;
       
       pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight, undefined, 'FAST');
-      
-      if (viewOnly) {
-        const blob = pdf.output('bloburl');
-        const x = window.open();
-        if (x) {
-          x.document.open();
-          x.document.write(`<iframe width='100%' height='100%' src='${blob}' style='border:none'></iframe>`);
-          x.document.close();
-        }
-      } else {
-        pdf.save(`${organogramaNome || 'organograma'}.pdf`);
-      }
+      pdf.save(`${organogramaNome || 'organograma'}.pdf`);
     } catch (err) {
       console.error(err);
       setZoom(originalZoom);
       toast({ title: "Erro", description: "Falha ao gerar PDF.", variant: "destructive" });
+    }
+  };
+
+  const generateWord = async () => {
+    if (!canvasRef.current) return;
+    
+    const originalZoom = zoom;
+    setZoom(1);
+    await new Promise(r => setTimeout(r, 1500));
+
+    try {
+      const canvas = await html2canvas(canvasRef.current, { 
+        useCORS: true,
+        scale: 2,
+        backgroundColor: "#ffffff",
+        logging: false,
+        allowTaint: true,
+        width: canvasRef.current.scrollWidth,
+        height: canvasRef.current.scrollHeight,
+        onclone: (clonedDoc) => {
+          const images = clonedDoc.getElementsByTagName('img');
+          for (let i = 0; i < images.length; i++) {
+            images[i].src = images[i].src; 
+          }
+        }
+      });
+      
+      setZoom(originalZoom);
+      
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      
+      // Create Word document HTML structure
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${organogramaNome || 'organograma'}</title>
+          <style>
+            body { margin: 1cm; font-family: Arial, sans-serif; }
+            h1 { text-align: center; font-size: 18pt; margin-bottom: 20px; }
+            img { width: 100%; max-width: 25cm; height: auto; display: block; margin: 0 auto; }
+          </style>
+        </head>
+        <body>
+          <h1>ORGANOGRAMA: ${organogramaNome || 'SEM NOME'}</h1>
+          <img src="${imgData}" alt="Organograma">
+        </body>
+        </html>
+      `;
+      
+      const blob = new Blob([htmlContent], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${organogramaNome || 'organograma'}.doc`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      toast({ title: "Sucesso", description: "Organograma exportado em Word." });
+    } catch (err) {
+      console.error(err);
+      setZoom(originalZoom);
+      toast({ title: "Erro", description: "Falha ao gerar Word.", variant: "destructive" });
     }
   };
 
@@ -323,7 +374,26 @@ export default function Organogramas() {
         {/* Sidebar Esquerda Fixa */}
         <div className="w-72 bg-slate-50 border-r flex flex-col shadow-inner z-30">
           <div className="p-4 space-y-3 border-b bg-white">
-            <div className="grid grid-cols-2 gap-2 mb-2">
+            {/* BOTÃO NOVO - BOTÃO SALVAR */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={novoOrganograma} variant="outline" size="sm" className="bg-white text-blue-600 border-blue-100 font-bold h-9">
+                <FilePlus className="w-4 h-4 mr-1" /> NOVO
+              </Button>
+              <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700 text-white font-bold h-9">
+                <Save className="w-4 h-4 mr-1" /> SALVAR
+              </Button>
+            </div>
+
+            {/* NOME DO ORGANOGRAMA */}
+            <Input
+              placeholder="NOME DO ORGANOGRAMA"
+              value={organogramaNome}
+              onChange={(e) => setOrganogramaNome(e.target.value.toUpperCase())}
+              className="h-9 text-sm font-bold border-slate-300"
+            />
+
+            {/* LARGURA - ALTURA */}
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase">Largura (px)</label>
                 <Input 
@@ -343,12 +413,8 @@ export default function Organogramas() {
                 />
               </div>
             </div>
-            <Input
-              placeholder="NOME DO ORGANOGRAMA"
-              value={organogramaNome}
-              onChange={(e) => setOrganogramaNome(e.target.value.toUpperCase())}
-              className="h-9 text-sm font-bold border-slate-300"
-            />
+
+            {/* ORGANOGRAMAS - INDIVÍDUOS */}
             <div className="flex flex-col gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -413,42 +479,16 @@ export default function Organogramas() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              <Button onClick={novoOrganograma} variant="outline" size="sm" className="w-full bg-white hover:bg-slate-50 text-slate-400 border-slate-100 h-9">
-                <FilePlus className="w-4 h-4 mr-1" /> NOVO
-              </Button>
             </div>
-            <Button onClick={handleSave} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10 shadow-sm">
-              <Save className="w-4 h-4 mr-2" /> SALVAR ORGANOGRAMA
-            </Button>
+
+            {/* GERAR PDF - GERAR WORD */}
             <div className="flex flex-col gap-2">
-              <Button onClick={() => generatePDF(true)} variant="outline" className="w-full border-slate-300 text-slate-700 font-bold h-9 bg-white">
-                <Eye className="w-4 h-4 mr-2" /> VISUALIZAR PDF
+              <Button onClick={generatePDF} className="w-full bg-slate-900 hover:bg-black text-white font-bold h-9">
+                <Download className="w-4 h-4 mr-2" /> GERAR PDF
               </Button>
-              <Button onClick={() => generatePDF(false)} className="w-full bg-slate-900 hover:bg-black text-white font-bold h-9">
-                <Download className="w-4 h-4 mr-2" /> GERAR PDF (A4)
+              <Button onClick={generateWord} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-9">
+                <FileText className="w-4 h-4 mr-2" /> GERAR WORD
               </Button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            <div>
-              <h3 className="font-bold text-[10px] mb-3 uppercase text-slate-400 tracking-widest border-b pb-1">Indivíduos no Banco</h3>
-              <div className="space-y-2">
-                {cadastros?.map(p => (
-                  <div 
-                    key={p.id} 
-                    className="p-2.5 bg-white border border-slate-200 rounded-lg cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all group flex justify-between items-center"
-                    onClick={() => addPerson(p)}
-                  >
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold truncate uppercase text-slate-800">{p.nome}</p>
-                      <p className="text-[9px] text-slate-500 truncate uppercase">{p.alcunha || 'Sem Alcunha'}</p>
-                    </div>
-                    <Plus className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500" />
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </div>
@@ -584,9 +624,10 @@ export default function Organogramas() {
                     }}
                   >
                     {node.type === 'person' ? renderPersonCard(node) : (
-                      <div className="bg-yellow-50 border-2 border-yellow-400 p-4 shadow-xl min-w-[150px] rounded-sm relative flex">
+                      <div style={{ width: `${cardScale.w}px` }} className="bg-yellow-50 border-2 border-yellow-400 p-2 shadow-xl rounded-sm relative flex">
                         <textarea 
-                          className="bg-transparent border-none resize-none w-full text-sm uppercase italic font-black focus:ring-0 p-0 text-slate-900 overflow-hidden"
+                          className="bg-transparent border-none resize-none w-full text-sm uppercase italic font-black focus:ring-0 p-0 text-slate-900 overflow-hidden break-words"
+                          style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}
                           value={node.data.text}
                           onChange={(e) => {
                             updateNodeText(node.id, e.target.value);

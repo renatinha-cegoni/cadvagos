@@ -42,7 +42,11 @@ export default function BancoDeDados() {
 
   const filteredData = cadastros?.filter(c => {
     const term = searchTerm.toLowerCase();
-    return c.nome.toLowerCase().includes(term) || (c.alcunha && c.alcunha.toLowerCase().includes(term));
+    return c.nome.toLowerCase().includes(term) || 
+           (c.alcunha && c.alcunha.toLowerCase().includes(term)) ||
+           (c.rg && c.rg.toLowerCase().includes(term)) ||
+           (c.cpf && c.cpf.toLowerCase().includes(term)) ||
+           (c.antecedentes && c.antecedentes.toLowerCase().includes(term));
   }).sort((a, b) => a.nome.localeCompare(b.nome)) || [];
 
   const requestAction = (type: 'edit' | 'delete', id: number, e?: React.MouseEvent) => {
@@ -75,7 +79,7 @@ export default function BancoDeDados() {
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
           <Input 
-            placeholder="Buscar por Nome ou Alcunha..." 
+            placeholder="Buscar por Nome, Alcunha, RG, CPF ou Antecedentes..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-12 h-14 text-lg bg-slate-50 border-slate-200 focus:bg-white transition-colors"
