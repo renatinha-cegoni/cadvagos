@@ -1,0 +1,146 @@
+Analise todo o código do aplicativo e implemente as correções e melhorias abaixo sem quebrar funcionalidades existentes. Caso encontre inconsistências ou bugs adicionais, corrija mantendo compatibilidade com o sistema atual.
+
+========================
+ABA ORGANOGRAMA
+========================
+
+1. SISTEMA DE SETAS ENTRE CARDS
+
+Corrigir e melhorar a lógica de criação de setas do organograma.
+
+Funcionamento esperado:
+
+- O usuário deve clicar primeiro no card de origem.
+- Depois clicar no card de destino.
+- O sistema deve criar automaticamente uma seta conectando os dois cards.
+
+Regras da seta:
+
+- A seta deve ser na cor preta.
+- A linha deve iniciar no limite (borda) do card de origem.
+- A linha deve terminar no limite (borda) do card de destino.
+- A ponta da seta deve ficar visível e apontar para o card de destino.
+- A seta não deve entrar dentro do card, apenas tocar o limite.
+- Caso os cards sejam movidos, a seta deve se ajustar automaticamente à nova posição.
+
+2. MANIPULAÇÃO DAS SETAS
+
+As setas devem funcionar como elementos independentes dentro do organograma.
+
+O usuário deve poder:
+
+REMOVER SETAS
+- Deve ser possível excluir uma seta criada.
+- Formas possíveis: selecionar a seta e pressionar DELETE ou aparecer um botão de remover ao selecionar a seta.
+
+REDIMENSIONAR SETAS
+- O usuário deve poder alterar o tamanho da seta manualmente.
+- A seta deve possuir alças de redimensionamento (handles).
+- Deve ser possível ajustar o comprimento da seta mantendo a ponta visível.
+
+ARRASTAR E REPOSICIONAR
+- A seta deve poder ser arrastada.
+- A seta deve poder ser reposicionada manualmente.
+- Deve funcionar de forma semelhante ao movimento dos cards.
+
+========================
+EXPORTAÇÃO DE PDF
+========================
+
+Existem dois bugs na geração do PDF que precisam ser corrigidos.
+
+1. TEXTO DAS CAIXAS DE TEXTO NÃO APARECE
+
+Corrigir o processo de geração do PDF para garantir que:
+- Todo texto digitado nas caixas de texto seja exibido.
+- Nenhum conteúdo seja perdido.
+- O layout do PDF represente fielmente o que aparece na tela.
+
+2. INFORMAÇÕES DOS CARDS ESTÃO SENDO CORTADAS
+
+Ao gerar o PDF algumas informações dentro dos cards (exemplo: RG) estão sendo cortadas.
+
+Corrigir para que:
+- Nenhuma informação seja cortada.
+- Todo conteúdo dentro dos cards seja visível.
+- O tamanho do card seja respeitado no PDF.
+- Se necessário, ajustar automaticamente o tamanho ou escala no documento.
+
+========================
+BOTÃO GERAR WORD
+========================
+
+O botão "Gerar Word" já existente deve funcionar corretamente.
+
+Ao clicar no botão deve ser gerado um arquivo .DOCX contendo:
+
+- Todos os cards do organograma
+- Todas as informações presentes nos cards
+
+Exemplos de informações:
+- Nome
+- Cargo
+- RG
+- Demais dados existentes
+
+Estrutura do documento Word:
+
+- Cada card deve aparecer como um bloco organizado de informações
+- O documento deve ser legível
+- Sempre que possível manter a hierarquia do organograma
+
+========================
+ABA CADASTROS
+========================
+
+Implementar controle automático de data e hora de criação e atualização dos cadastros.
+
+Cada cadastro deve possuir os campos:
+
+created_at
+updated_at
+
+Regras:
+
+- Ao criar um cadastro: salvar automaticamente created_at
+- Ao editar um cadastro: atualizar automaticamente updated_at
+
+Formato da data e hora:
+
+YYYY-MM-DD HH:MM
+
+Exemplo:
+2026-03-09 14:35
+
+========================
+ABA BANCO DE DADOS
+========================
+
+Quando o usuário clicar em um cadastro de indivíduo, deve aparecer na parte inferior da tela uma pequena mensagem informativa.
+
+Exemplo de exibição:
+
+CRIADO EM 08/03/2026 21:14
+ATUALIZADO EM 09/03/2026 10:52
+
+Caso o cadastro nunca tenha sido atualizado, mostrar apenas:
+
+CRIADO EM 08/03/2026 21:14
+
+Requisitos da mensagem:
+
+- Texto pequeno
+- Discreto
+- Atualizado dinamicamente conforme o cadastro selecionado
+- Posicionado na parte inferior da interface
+
+========================
+REQUISITOS GERAIS
+========================
+
+- Não quebrar funcionalidades existentes
+- Manter compatibilidade com o código atual
+- Corrigir bugs encontrados
+- Organizar e otimizar o código se necessário
+- Garantir que PDF e Word exportem todos os dados corretamente
+- Garantir que cards, textos e setas apareçam corretamente nas exportações
