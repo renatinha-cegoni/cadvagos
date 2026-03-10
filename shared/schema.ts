@@ -19,6 +19,7 @@ export const cadastros = pgTable("cadastros", {
   observacoes: text("observacoes"),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const organogramas = pgTable("organogramas", {
@@ -28,7 +29,7 @@ export const organogramas = pgTable("organogramas", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertCadastroSchema = createInsertSchema(cadastros).omit({ id: true, createdAt: true });
+export const insertCadastroSchema = createInsertSchema(cadastros).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertOrganogramaSchema = createInsertSchema(organogramas).omit({ id: true, createdAt: true });
 
 export type Cadastro = typeof cadastros.$inferSelect;

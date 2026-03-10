@@ -220,35 +220,65 @@ export default function Organogramas() {
       
       const imgData = canvas.toDataURL('image/png', 1.0);
       
-      // Create Word document HTML structure
+      // Create Word-compatible HTML document with all elements
       const htmlContent = `
-        <!DOCTYPE html>
-        <html>
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+        <html xmlns="http://www.w3.org/1999/xhtml">
         <head>
-          <meta charset="utf-8">
+          <meta charset="utf-8" />
+          <meta name="Generator" content="Organograma Export" />
           <title>${organogramaNome || 'organograma'}</title>
-          <style>
-            body { margin: 1cm; font-family: Arial, sans-serif; }
-            h1 { text-align: center; font-size: 18pt; margin-bottom: 20px; }
-            img { width: 100%; max-width: 25cm; height: auto; display: block; margin: 0 auto; }
+          <style type="text/css">
+            body { 
+              margin: 1in; 
+              font-family: Arial, sans-serif;
+              background-color: #ffffff;
+            }
+            h1 { 
+              text-align: center; 
+              font-size: 18pt; 
+              margin-bottom: 20px;
+              color: #000000;
+              font-weight: bold;
+            }
+            .organogram-image { 
+              width: 100%; 
+              max-width: 8in; 
+              height: auto; 
+              display: block; 
+              margin: 0 auto;
+              page-break-inside: avoid;
+            }
+            .footer {
+              margin-top: 20px;
+              text-align: center;
+              font-size: 9pt;
+              color: #666666;
+              border-top: 1px solid #cccccc;
+              padding-top: 10px;
+            }
           </style>
         </head>
         <body>
           <h1>ORGANOGRAMA: ${organogramaNome || 'SEM NOME'}</h1>
-          <img src="${imgData}" alt="Organograma">
+          <img class="organogram-image" src="${imgData}" alt="Organograma">
+          <div class="footer">
+            <p>Documento gerado automaticamente - Todos os cards, textos e setas inclusos</p>
+          </div>
         </body>
         </html>
       `;
       
-      const blob = new Blob([htmlContent], { type: 'application/msword' });
+      const blob = new Blob([htmlContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${organogramaNome || 'organograma'}.doc`;
+      link.download = `${organogramaNome || 'organograma'}.docx`;
       link.click();
       URL.revokeObjectURL(url);
       
-      toast({ title: "Sucesso", description: "Organograma exportado em Word." });
+      toast({ title: "Sucesso", description: "Organograma exportado em Word com todos os elementos." });
     } catch (err) {
       console.error(err);
       setZoom(originalZoom);
@@ -553,8 +583,8 @@ export default function Organogramas() {
             >
               <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
                 <defs>
-                  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-                    <path d="M0,0 L0,10 L10,5 z" fill="#ef4444" />
+                  <marker id="arrowBlack" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                    <path d="M0,0 L0,10 L10,5 z" fill="#000000" />
                   </marker>
                 </defs>
                 {connections.map((conn) => {
@@ -596,12 +626,12 @@ export default function Organogramas() {
                       <line 
                         x1={c1.x} y1={c1.y}
                         x2={targetX} y2={targetY}
-                        stroke="#ef4444"
-                        strokeWidth="5"
-                        markerEnd="url(#arrow)"
-                        className="group-hover/line:stroke-red-700 transition-colors drop-shadow-xl"
+                        stroke="#000000"
+                        strokeWidth="2"
+                        markerEnd="url(#arrowBlack)"
+                        className="group-hover/line:stroke-slate-800 transition-colors drop-shadow-xl"
                       />
-                      <circle cx={(c1.x + targetX) / 2} cy={(c1.y + targetY) / 2} r="8" className="fill-red-600 opacity-0 group-hover/line:opacity-100 shadow-lg" />
+                      <circle cx={(c1.x + targetX) / 2} cy={(c1.y + targetY) / 2} r="6" className="fill-slate-800 opacity-0 group-hover/line:opacity-100 shadow-lg" />
                     </g>
                   );
                 })}

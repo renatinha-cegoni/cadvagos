@@ -8,7 +8,7 @@ import {
   type Organograma,
   type InsertOrganograma,
 } from "@shared/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, sql } from "drizzle-orm";
 
 export interface IStorage {
   getCadastros(): Promise<Cadastro[]>;
@@ -41,7 +41,10 @@ export class DatabaseStorage implements IStorage {
 
   async updateCadastro(id: number, updates: UpdateCadastroRequest): Promise<Cadastro> {
     const [updated] = await db.update(cadastros)
-      .set(updates)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
       .where(eq(cadastros.id, id))
       .returning();
     return updated;

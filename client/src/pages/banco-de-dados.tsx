@@ -141,6 +141,16 @@ export default function BancoDeDados() {
             <DialogTitle className="uppercase border-b pb-2">Perfil do Indivíduo</DialogTitle>
           </DialogHeader>
           {selectedItem && (
+            <div className="flex flex-col space-y-4">
+              {/* Timestamp Info */}
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider space-y-0.5 border-l-2 border-slate-200 pl-3">
+                <p>CRIADO EM {selectedItem.createdAt ? new Date(selectedItem.createdAt).toLocaleDateString('pt-BR') + ' ' + new Date(selectedItem.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-'}</p>
+                {selectedItem.updatedAt && new Date(selectedItem.updatedAt).getTime() !== new Date(selectedItem.createdAt).getTime() && (
+                  <p>ATUALIZADO EM {new Date(selectedItem.updatedAt).toLocaleDateString('pt-BR')} {new Date(selectedItem.updatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                )}
+              </div>
+
+              {/* Profile Grid */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-4">
               <div className="md:col-span-4">
                 <div className="aspect-[3/4] bg-slate-100 rounded-lg overflow-hidden border">
@@ -168,6 +178,7 @@ export default function BancoDeDados() {
                   <p className="text-sm p-2 bg-slate-50 rounded border uppercase italic">{selectedItem.observacoes || 'NENHUMA'}</p>
                 </div>
               </div>
+            </div>
             </div>
           )}
         </DialogContent>
