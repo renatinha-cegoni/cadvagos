@@ -16,30 +16,30 @@ if (!fs.existsSync(uploadDir)) {
 const uploader = multer({
   storage: multer.diskStorage({
     destination: uploadDir,
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
       cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-  })
+    },
+  }),
 });
 
 export async function registerRoutes(
   httpServer: Server,
-  app: Express
+  app: Express,
 ): Promise<Server> {
-  // Serve uploaded files
+  // Servir arquivos enviados
   app.use("/uploads", express.static(uploadDir));
 
-  app.get(api.cadastros.list.path, async (req, res) => {
+  // --- Cadastros ---
+  app.get(api.cadastros.list.path, async (_req, res) => {
     const data = await storage.getCadastros();
     res.json(data);
   });
 
   app.get(api.cadastros.get.path, async (req, res) => {
     const item = await storage.getCadastro(Number(req.params.id));
-    if (!item) {
-      return res.status(404).json({ message: 'Cadastro não encontrado' });
-    }
+    if (!item)
+      return res.status(404).json({ message: "Cadastro não encontrado" });
     res.json(item);
   });
 
@@ -52,7 +52,7 @@ export async function registerRoutes(
       if (err instanceof z.ZodError) {
         return res.status(400).json({
           message: err.errors[0].message,
-          field: err.errors[0].path.join('.'),
+          field: err.errors[0].path.join("."),
         });
       }
       throw err;
@@ -68,7 +68,7 @@ export async function registerRoutes(
       if (err instanceof z.ZodError) {
         return res.status(400).json({
           message: err.errors[0].message,
-          field: err.errors[0].path.join('.'),
+          field: err.errors[0].path.join("."),
         });
       }
       throw err;
@@ -80,14 +80,16 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
-  app.get(api.organogramas.list.path, async (req, res) => {
+  // --- Organogramas ---
+  app.get(api.organogramas.list.path, async (_req, res) => {
     const data = await storage.getOrganogramas();
     res.json(data);
   });
 
   app.get(api.organogramas.get.path, async (req, res) => {
     const item = await storage.getOrganograma(Number(req.params.id));
-    if (!item) return res.status(404).json({ message: "Organograma não encontrado" });
+    if (!item)
+      return res.status(404).json({ message: "Organograma não encontrado" });
     res.json(item);
   });
 
@@ -108,25 +110,30 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
-  app.post(api.upload.create.path, uploader.single("file"), async (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({ message: "Nenhum arquivo enviado" });
-    }
-    try {
-      const fileBuffer = fs.readFileSync(req.file.path);
-      const mimeType = req.file.mimetype;
-      const base64 = fileBuffer.toString('base64');
-      const imageUrl = `data:${mimeType};base64,${base64}`;
-      fs.unlinkSync(req.file.path);
-      res.json({ imageUrl });
-    } catch (err) {
-      console.error("Erro ao processar imagem:", err);
-      res.status(500).json({ message: "Erro ao processar imagem" });
-    }
-  });
+  // --- Upload ---
+  app.post(
+    api.upload.create.path,
+    uploader.single("file"),
+    async (req, res) => {
+      if (!req.file) {
+        return res.status(400).json({ message: "Nenhum arquivo enviado" });
+      }
+      try {
+        const fileBuffer = fs.readFileSync(req.file.path);
+        const mimeType = req.file.mimetype;
+        const base64 = fileBuffer.toString("base64");
+        const imageUrl = `data:${mimeType};base64,${base64}`;
+        fs.unlinkSync(req.file.path);
+        res.json({ imageUrl });
+      } catch (err) {
+        console.error("Erro ao processar imagem:", err);
+        res.status(500).json({ message: "Erro ao processar imagem" });
+      }
+    },
+  );
 
-  // Seed database
-  seedDatabase();
+  // --- Seed inicial ---
+  await seedDatabase();
 
   return httpServer;
 }
