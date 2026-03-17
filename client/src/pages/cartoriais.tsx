@@ -1,20 +1,42 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Layout } from "@/components/layout";
 import { useCadastros } from "@/hooks/use-cadastros";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, FileDown, FileText, UserX } from "lucide-react";
+import { Search, FileDown, FileText, UserX, Eye, User, Plus } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, VerticalAlign } from "docx";
 import { saveAs } from "file-saver";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+function DetailRow({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="flex border-b pb-1">
+      <span className="w-24 text-[10px] font-bold text-slate-500 uppercase self-center">{label}</span>
+      <span className="flex-1 text-sm uppercase italic font-medium">{value || '-'}</span>
+    </div>
+  );
+}
 
 export default function Cartoriais() {
   const { data: cadastros, isLoading } = useCadastros();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  
+  const [viewPerson, setViewPerson] = useState<any>(null);
+
   const reportRef = useRef<HTMLDivElement>(null);
 
   const filteredData = cadastros?.filter(c => {
@@ -209,6 +231,60 @@ export default function Cartoriais() {
               ))}
             </div>
           </div>
+
+          {/* Botão INDIVÍDUOS */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full font-bold border-slate-300 h-9">
+                  <User className="w-4 h-4 mr-2" /> INDIVÍDUOS
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-72 max-h-80 overflow-y-auto">
+                {(!cadastros || cadastros.length === 0) ? (
+                  <DropdownMenuItem disabled>Nenhum cadastro encontrado</DropdownMenuItem>
+                ) : (
+                  cadastros.map(p => (
+                    <DropdownMenuItem
+                      key={p.id}
+                      className="flex items-center justify-between gap-2 p-2 cursor-default"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold truncate uppercase">{p.nome}</p>
+                        <p className="text-[8px] text-slate-400 truncate uppercase">{p.alcunha || 'Sem vulgo'}</p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-blue-500"
+                          title="Visualizar cadastro"
+                          onClick={() => setViewPerson(p)}
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-green-500"
+                          title="Inserir na cartorial"
+                          onClick={() => {
+                            const newSet = new Set(selectedIds);
+                            newSet.add(p.id);
+                            setSelectedIds(newSet);
+                          }}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
             <Button className="w-full bg-red-600 hover:bg-red-700" onClick={exportPDF} disabled={selectedIds.size === 0}>
               <FileDown className="w-4 h-4 mr-2" /> GERAR PDF
@@ -225,7 +301,7 @@ export default function Cartoriais() {
                 <div className="flex border-b-2 border-black">
                   <div className="w-[30%] border-r-2 border-black p-2 flex items-center justify-center min-h-[150px]">
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt="Foto" className="max-w-full max-h-[180px] object-contain" />
+                      <img src={item.imageUrl} alt="Foto" className="max-w-full max-h-[180px] object-contain" crossOrigin="anonymous" />
                     ) : (
                       <div className="text-gray-400 flex flex-col items-center"><UserX /><span className="text-[9pt] uppercase">Sem Foto</span></div>
                     )}
@@ -294,6 +370,48 @@ export default function Cartoriais() {
           </div>
         </div>
       </div>
+
+      {/* Dialog de visualização de perfil */}
+      <Dialog open={!!viewPerson} onOpenChange={() => setViewPerson(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="uppercase border-b pb-2">Perfil do Indivíduo</DialogTitle>
+          </DialogHeader>
+          {viewPerson && (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-4">
+              <div className="md:col-span-4">
+                <div className="aspect-[3/4] bg-slate-100 rounded-lg overflow-hidden border">
+                  {viewPerson.imageUrl
+                    ? <img src={viewPerson.imageUrl} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                    : <div className="w-full h-full flex items-center justify-center text-slate-300"><User className="w-16 h-16" /></div>}
+                </div>
+              </div>
+              <div className="md:col-span-8 space-y-3">
+                <DetailRow label="NOME" value={viewPerson.nome} />
+                <DetailRow label="ALCUNHA" value={viewPerson.alcunha} />
+                <DetailRow label="DATA NASC." value={viewPerson.dataNascimento} />
+                <DetailRow label="RG" value={viewPerson.rg} />
+                <DetailRow label="CPF" value={viewPerson.cpf} />
+                <DetailRow label="SITUAÇÃO" value={viewPerson.situacao} />
+                <DetailRow label="ORCRIM" value={viewPerson.orcrim} />
+                <DetailRow label="CÓD. PRESO" value={viewPerson.codigoPreso} />
+                <DetailRow label="PAI" value={viewPerson.pai} />
+                <DetailRow label="MÃE" value={viewPerson.mae} />
+                <DetailRow label="ENDEREÇO" value={viewPerson.endereco} />
+                <div className="pt-2">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase">ANTECEDENTES (OC)</p>
+                  <p className="text-sm p-2 bg-slate-50 rounded border uppercase italic">{viewPerson.antecedentes || 'NADA CONSTA'}</p>
+                </div>
+                <div className="pt-2">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase">OBSERVAÇÕES</p>
+                  <p className="text-sm p-2 bg-slate-50 rounded border uppercase italic">{viewPerson.observacoes || 'NENHUMA'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <style>{`
         @media print {
           .page-break-inside-avoid {

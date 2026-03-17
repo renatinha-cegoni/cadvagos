@@ -300,6 +300,30 @@ export default function CadastrosForm() {
           </div>
         </div>
 
+        {/* Timestamps (somente em modo edição) */}
+        {isEditing && existingData && (
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex gap-8">
+            <div>
+              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">CRIADO EM</p>
+              <p className="text-sm font-bold text-slate-700">
+                {existingData.createdAt
+                  ? new Date(existingData.createdAt).toLocaleDateString('pt-BR') + ' ' +
+                    new Date(existingData.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                  : '-'}
+              </p>
+            </div>
+            {existingData.updatedAt && new Date(existingData.updatedAt).getTime() !== new Date(existingData.createdAt!).getTime() && (
+              <div>
+                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">ÚLTIMA EDIÇÃO</p>
+                <p className="text-sm font-bold text-slate-700">
+                  {new Date(existingData.updatedAt).toLocaleDateString('pt-BR') + ' ' +
+                   new Date(existingData.updatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex justify-end gap-4 pt-6 mt-6 border-t border-slate-200">
           <Button 

@@ -108,12 +108,21 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
-  app.post(api.upload.create.path, uploader.single("file"), (req, res) => {
+  app.post(api.upload.create.path, uploader.single("file"), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: "Nenhum arquivo enviado" });
     }
-    const imageUrl = `/uploads/${req.file.filename}`;
-    res.json({ imageUrl });
+    try {
+      const fileBuffer = fs.readFileSync(req.file.path);
+      const mimeType = req.file.mimetype;
+      const base64 = fileBuffer.toString('base64');
+      const imageUrl = `data:${mimeType};base64,${base64}`;
+      fs.unlinkSync(req.file.path);
+      res.json({ imageUrl });
+    } catch (err) {
+      console.error("Erro ao processar imagem:", err);
+      res.status(500).json({ message: "Erro ao processar imagem" });
+    }
   });
 
   // Seed database

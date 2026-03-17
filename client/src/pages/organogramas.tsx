@@ -35,6 +35,10 @@ interface Connection {
   id: string;
   from: string;
   to: string;
+  x1Override?: number;
+  y1Override?: number;
+  x2Override?: number;
+  y2Override?: number;
 }
 
 function DetailRow({ label, value }: { label: string, value: string | null }) {
@@ -58,6 +62,8 @@ export default function Organogramas() {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [isAddingConnection, setIsAddingConnection] = useState(false);
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
+  const [selectedConnId, setSelectedConnId] = useState<string | null>(null);
+  const [dragHandle, setDragHandle] = useState<{ connId: string; which: 'start' | 'end' } | null>(null);
   const [promptOpen, setPromptOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [organogramaNome, setOrganogramaNome] = useState("");
@@ -67,6 +73,7 @@ export default function Organogramas() {
   const [zoom, setZoom] = useState(1);
   
   const canvasRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const personCount = useMemo(() => nodes.filter(n => n.type === 'person').length, [nodes]);
 
@@ -132,11 +139,44 @@ export default function Organogramas() {
 
   const removeConnection = (id: string) => {
     setConnections(prev => prev.filter(c => c.id !== id));
+    setSelectedConnId(null);
   };
 
   const updateNodeText = (id: string, text: string) => {
     setNodes(prev => prev.map(n => n.id === id ? { ...n, data: { ...n.data, text: text.toUpperCase() } } : n));
   };
+
+  const updateNodeFontSize = (id: string, size: number) => {
+    setNodes(prev => prev.map(n => n.id === id ? { ...n, data: { ...n.data, fontSize: size } } : n));
+  };
+
+  const handleSvgMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!dragHandle || !svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / zoom;
+    const y = (e.clientY - rect.top) / zoom;
+    setConnections(prev => prev.map(c => {
+      if (c.id !== dragHandle.connId) return c;
+      if (dragHandle.which === 'start') return { ...c, x1Override: x, y1Override: y };
+      return { ...c, x2Override: x, y2Override: y };
+    }));
+  };
+
+  const handleSvgMouseUp = () => {
+    setDragHandle(null);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedConnId) {
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) return;
+        removeConnection(selectedConnId);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedConnId]);
 
   const generatePDF = async () => {
     if (!canvasRef.current) return;
@@ -339,59 +379,58 @@ export default function Organogramas() {
   };
 
   const renderPersonCard = (node: OrganogramaNode) => {
-    const isLarge = cardScale.w > 200;
-    const isSmall = cardScale.w < 140;
+    const labelSz = cardScale.w > 150 ? 'text-[8px]' : 'text-[6px]';
+    const nameSz = cardScale.w > 150 ? 'text-[9px]' : 'text-[7px]';
+    const photoH = Math.floor(cardScale.h * 0.45);
 
     return (
       <Card 
         style={{ width: `${cardScale.w}px`, height: `${cardScale.h}px` }}
-        className="bg-white border-2 border-slate-900 overflow-hidden shadow-2xl relative flex flex-col transition-all duration-300"
+        className="bg-white border-2 border-slate-900 overflow-hidden shadow-2xl relative flex flex-col"
       >
-        <div className="flex-1 bg-slate-100 border-b relative overflow-hidden">
+        <div 
+          className="bg-slate-100 border-b relative overflow-hidden shrink-0"
+          style={{ height: `${photoH}px` }}
+        >
           {node.data.imageUrl ? (
             <img src={node.data.imageUrl} className="w-full h-full object-cover" crossOrigin="anonymous" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-slate-50">
-              <User className={isLarge ? "w-16 h-16 text-slate-200" : "w-8 h-8 text-slate-300"} />
+              <User className="w-8 h-8 text-slate-300" />
             </div>
           )}
           <Button
             size="icon"
             variant="secondary"
-            className="absolute top-1 right-1 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg bg-white/90 hover:bg-white"
+            className="absolute top-1 right-1 h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg bg-white/90 hover:bg-white"
             onClick={(e) => {
               e.stopPropagation();
               setSelectedPerson(node.data);
             }}
           >
-            <Eye className="h-3 w-3 text-blue-600" />
+            <Eye className="h-2.5 w-2.5 text-blue-600" />
           </Button>
         </div>
-        <div className={isLarge ? "p-4 space-y-2 bg-white" : "p-1.5 space-y-0.5 bg-white overflow-hidden"}>
-          <p className={`${cardScale.fontSize} font-black uppercase leading-tight text-slate-900 break-words whitespace-pre-wrap`}>
+        <div className="flex-1 p-1 space-y-0.5 bg-white overflow-hidden flex flex-col">
+          <p className={`${nameSz} font-black uppercase leading-tight text-slate-900 break-words`}>
             {node.data.nome}
           </p>
-          <p className={`${cardScale.labelSize} italic uppercase text-slate-500 font-bold break-words whitespace-pre-wrap`}>
+          <p className={`${labelSz} italic uppercase text-slate-500 font-bold break-words`}>
             {node.data.alcunha || 'SEM ALCUNHA'}
           </p>
-          
-          <div className={`mt-auto pt-0.5 border-t border-slate-100 flex flex-col gap-0.5 ${cardScale.labelSize} font-bold`}>
-            <div className="flex justify-between items-center gap-1">
+          <div className={`pt-0.5 border-t border-slate-100 flex flex-col gap-0.5 ${labelSz} font-bold`}>
+            <div className="flex gap-0.5 leading-tight">
               <span className="text-slate-400 shrink-0">RG:</span>
-              <span className="text-slate-700 truncate">{node.data.rg}</span>
+              <span className="text-slate-700 break-all">{node.data.rg}</span>
             </div>
-            {isLarge && (
-              <div className="flex justify-between items-center gap-1">
-                <span className="text-slate-400 shrink-0">ORCRIM:</span>
-                <span className="text-blue-800 truncate">{node.data.orcrim}</span>
-              </div>
-            )}
-            {isLarge && (
-              <div className="flex justify-between items-center gap-1">
-                <span className="text-slate-400 shrink-0">SITUAÇÃO:</span>
-                <span className="text-red-600 truncate">{node.data.situacao}</span>
-              </div>
-            )}
+            <div className="flex gap-0.5 leading-tight">
+              <span className="text-slate-400 shrink-0">ORCRIM:</span>
+              <span className="text-blue-800 break-words">{node.data.orcrim}</span>
+            </div>
+            <div className="flex gap-0.5 leading-tight">
+              <span className="text-slate-400 shrink-0">SIT.:</span>
+              <span className="text-red-600 break-words">{node.data.situacao}</span>
+            </div>
           </div>
         </div>
       </Card>
@@ -581,10 +620,20 @@ export default function Organogramas() {
                 }
               }}
             >
-              <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
+              <svg 
+                ref={svgRef}
+                className="absolute inset-0 w-full h-full"
+                style={{ zIndex: 5, pointerEvents: dragHandle ? 'all' : 'none' }}
+                onMouseMove={handleSvgMouseMove}
+                onMouseUp={handleSvgMouseUp}
+                onClick={() => setSelectedConnId(null)}
+              >
                 <defs>
                   <marker id="arrowBlack" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
                     <path d="M0,0 L0,10 L10,5 z" fill="#000000" />
+                  </marker>
+                  <marker id="arrowSelected" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                    <path d="M0,0 L0,10 L10,5 z" fill="#2563eb" />
                   </marker>
                 </defs>
                 {connections.map((conn) => {
@@ -595,21 +644,18 @@ export default function Organogramas() {
                   const d1 = from.type === 'person' ? cardScale : { w: 150, h: 60 };
                   const d2 = to.type === 'person' ? cardScale : { w: 150, h: 60 };
 
-                  const c1 = { x: from.x + d1.w / 2, y: from.y + d1.h / 2 };
-                  const c2 = { x: to.x + d2.w / 2, y: to.y + d2.h / 2 };
+                  const c1raw = { x: from.x + d1.w / 2, y: from.y + d1.h / 2 };
+                  const c2raw = { x: to.x + d2.w / 2, y: to.y + d2.h / 2 };
 
-                  const dx = c2.x - c1.x;
-                  const dy = c2.y - c1.y;
+                  const dx = c2raw.x - c1raw.x;
+                  const dy = c2raw.y - c1raw.y;
                   const angle = Math.atan2(dy, dx);
                   
-                  // Calculate intersection with target node boundary
                   const targetW = d2.w / 2;
                   const targetH = d2.h / 2;
-                  
                   let edgeX, edgeY;
                   const absTan = Math.abs(Math.tan(angle));
                   const boxTan = targetH / targetW;
-
                   if (absTan < boxTan) {
                     edgeX = targetW * Math.sign(dx);
                     edgeY = targetW * Math.abs(Math.tan(angle)) * Math.sign(dy);
@@ -618,20 +664,59 @@ export default function Organogramas() {
                     edgeY = targetH * Math.sign(dy);
                   }
 
-                  const targetX = c2.x - edgeX;
-                  const targetY = c2.y - edgeY;
+                  const autoX1 = c1raw.x;
+                  const autoY1 = c1raw.y;
+                  const autoX2 = c2raw.x - edgeX;
+                  const autoY2 = c2raw.y - edgeY;
+
+                  const x1 = conn.x1Override !== undefined ? conn.x1Override : autoX1;
+                  const y1 = conn.y1Override !== undefined ? conn.y1Override : autoY1;
+                  const x2 = conn.x2Override !== undefined ? conn.x2Override : autoX2;
+                  const y2 = conn.y2Override !== undefined ? conn.y2Override : autoY2;
+
+                  const isSelected = selectedConnId === conn.id;
+                  const midX = (x1 + x2) / 2;
+                  const midY = (y1 + y2) / 2;
 
                   return (
-                    <g key={conn.id} className="pointer-events-auto cursor-pointer group/line" onClick={() => removeConnection(conn.id)}>
+                    <g key={conn.id} style={{ pointerEvents: 'all' }}>
+                      {/* Linha invisível mais grossa para facilitar o clique */}
                       <line 
-                        x1={c1.x} y1={c1.y}
-                        x2={targetX} y2={targetY}
-                        stroke="#000000"
-                        strokeWidth="2"
-                        markerEnd="url(#arrowBlack)"
-                        className="group-hover/line:stroke-slate-800 transition-colors drop-shadow-xl"
+                        x1={x1} y1={y1} x2={x2} y2={y2}
+                        stroke="transparent"
+                        strokeWidth="12"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(e) => { e.stopPropagation(); setSelectedConnId(isSelected ? null : conn.id); }}
                       />
-                      <circle cx={(c1.x + targetX) / 2} cy={(c1.y + targetY) / 2} r="6" className="fill-slate-800 opacity-0 group-hover/line:opacity-100 shadow-lg" />
+                      {/* Linha visível */}
+                      <line 
+                        x1={x1} y1={y1} x2={x2} y2={y2}
+                        stroke={isSelected ? "#2563eb" : "#000000"}
+                        strokeWidth={isSelected ? 2.5 : 2}
+                        markerEnd={isSelected ? "url(#arrowSelected)" : "url(#arrowBlack)"}
+                        style={{ pointerEvents: 'none' }}
+                      />
+                      {/* Handles quando selecionada */}
+                      {isSelected && (
+                        <>
+                          <circle cx={x1} cy={y1} r="8" fill="#2563eb" stroke="white" strokeWidth="2"
+                            style={{ cursor: 'move', pointerEvents: 'all' }}
+                            onMouseDown={(e) => { e.stopPropagation(); setDragHandle({ connId: conn.id, which: 'start' }); }}
+                          />
+                          <circle cx={x2} cy={y2} r="8" fill="#2563eb" stroke="white" strokeWidth="2"
+                            style={{ cursor: 'move', pointerEvents: 'all' }}
+                            onMouseDown={(e) => { e.stopPropagation(); setDragHandle({ connId: conn.id, which: 'end' }); }}
+                          />
+                          {/* Botão X para deletar */}
+                          <g
+                            style={{ cursor: 'pointer', pointerEvents: 'all' }}
+                            onClick={(e) => { e.stopPropagation(); removeConnection(conn.id); }}
+                          >
+                            <circle cx={midX} cy={midY} r="11" fill="#ef4444" stroke="white" strokeWidth="2" />
+                            <text x={midX} y={midY + 5} textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" style={{ userSelect: 'none' }}>×</text>
+                          </g>
+                        </>
+                      )}
                     </g>
                   );
                 })}
@@ -654,10 +739,30 @@ export default function Organogramas() {
                     }}
                   >
                     {node.type === 'person' ? renderPersonCard(node) : (
-                      <div style={{ width: `${cardScale.w}px` }} className="bg-yellow-50 border-2 border-yellow-400 p-2 shadow-xl rounded-sm relative flex">
+                      <div style={{ width: `${cardScale.w}px` }} className="bg-yellow-50 border-2 border-yellow-400 shadow-xl rounded-sm relative flex flex-col">
+                        {/* Controle de tamanho de fonte */}
+                        <div 
+                          className="flex items-center gap-1 px-1.5 pt-1 pb-0.5 border-b border-yellow-300"
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          <span className="text-[8px] text-yellow-700 font-bold shrink-0">Pt:</span>
+                          <input
+                            type="number"
+                            value={node.data.fontSize || 12}
+                            onChange={(e) => updateNodeFontSize(node.id, Number(e.target.value))}
+                            className="w-10 text-[8px] bg-yellow-100 border border-yellow-300 rounded text-center outline-none font-bold"
+                            min={6}
+                            max={72}
+                          />
+                        </div>
                         <textarea 
-                          className="bg-transparent border-none resize-none w-full text-sm uppercase italic font-black focus:ring-0 p-0 text-slate-900 overflow-hidden break-words"
-                          style={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}
+                          className="bg-transparent border-none resize-none w-full uppercase italic font-black focus:ring-0 p-1.5 text-slate-900 overflow-hidden break-words"
+                          style={{ 
+                            wordWrap: 'break-word', 
+                            whiteSpace: 'pre-wrap',
+                            fontSize: `${node.data.fontSize || 12}px`
+                          }}
                           value={node.data.text}
                           onChange={(e) => {
                             updateNodeText(node.id, e.target.value);
@@ -668,7 +773,7 @@ export default function Organogramas() {
                             e.target.style.height = 'auto';
                             e.target.style.height = e.target.scrollHeight + 'px';
                           }}
-                          rows={1}
+                          rows={2}
                         />
                       </div>
                     )}
