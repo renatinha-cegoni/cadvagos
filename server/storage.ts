@@ -8,7 +8,7 @@ import {
   type Organograma,
   type InsertOrganograma,
 } from "@shared/schema";
-import { eq, asc, sql } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 
 export interface IStorage {
   getCadastros(): Promise<Cadastro[]>;
@@ -16,11 +16,14 @@ export interface IStorage {
   createCadastro(cadastro: InsertCadastro): Promise<Cadastro>;
   updateCadastro(id: number, updates: UpdateCadastroRequest): Promise<Cadastro>;
   deleteCadastro(id: number): Promise<void>;
-  
+
   getOrganogramas(): Promise<Organograma[]>;
   getOrganograma(id: number): Promise<Organograma | undefined>;
   createOrganograma(organograma: InsertOrganograma): Promise<Organograma>;
-  updateOrganograma(id: number, updates: Partial<InsertOrganograma>): Promise<Organograma>;
+  updateOrganograma(
+    id: number,
+    updates: Partial<InsertOrganograma>,
+  ): Promise<Organograma>;
   deleteOrganograma(id: number): Promise<void>;
 }
 
@@ -30,20 +33,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCadastro(id: number): Promise<Cadastro | undefined> {
-    const [cadastro] = await db.select().from(cadastros).where(eq(cadastros.id, id));
+    const [cadastro] = await db
+      .select()
+      .from(cadastros)
+      .where(eq(cadastros.id, id));
     return cadastro;
   }
 
   async createCadastro(insertCadastro: InsertCadastro): Promise<Cadastro> {
-    const [cadastro] = await db.insert(cadastros).values(insertCadastro).returning();
+    const [cadastro] = await db
+      .insert(cadastros)
+      .values(insertCadastro)
+      .returning();
     return cadastro;
   }
 
-  async updateCadastro(id: number, updates: UpdateCadastroRequest): Promise<Cadastro> {
-    const [updated] = await db.update(cadastros)
+  async updateCadastro(
+    id: number,
+    updates: UpdateCadastroRequest,
+  ): Promise<Cadastro> {
+    const [updated] = await db
+      .update(cadastros)
       .set({
         ...updates,
-        updatedAt: new Date()
+        [cadastros.updatedAt]: new Date(), // ✅ corrigido: usa o campo mapeado
       })
       .where(eq(cadastros.id, id))
       .returning();
@@ -59,17 +72,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOrganograma(id: number): Promise<Organograma | undefined> {
-    const [item] = await db.select().from(organogramas).where(eq(organogramas.id, id));
+    const [item] = await db
+      .select()
+      .from(organogramas)
+      .where(eq(organogramas.id, id));
     return item;
   }
 
-  async createOrganograma(organograma: InsertOrganograma): Promise<Organograma> {
-    const [item] = await db.insert(organogramas).values(organograma).returning();
+  async createOrganograma(
+    organograma: InsertOrganograma,
+  ): Promise<Organograma> {
+    const [item] = await db
+      .insert(organogramas)
+      .values(organograma)
+      .returning();
     return item;
   }
 
-  async updateOrganograma(id: number, updates: Partial<InsertOrganograma>): Promise<Organograma> {
-    const [updated] = await db.update(organogramas)
+  async updateOrganograma(
+    id: number,
+    updates: Partial<InsertOrganograma>,
+  ): Promise<Organograma> {
+    const [updated] = await db
+      .update(organogramas)
       .set(updates)
       .where(eq(organogramas.id, id))
       .returning();
