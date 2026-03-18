@@ -14,6 +14,7 @@ export const cadastros = pgTable("cadastros", {
   codigoPreso: text("codigo_preso"),
   pai: text("pai"),
   mae: text("mae"),
+  cidade: text("cidade"),
   endereco: text("endereco"),
   antecedentes: text("antecedentes"),
   observacoes: text("observacoes"),

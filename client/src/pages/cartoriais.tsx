@@ -3,8 +3,7 @@ import { Layout } from "@/components/layout";
 import { useCadastros } from "@/hooks/use-cadastros";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Search, FileDown, FileText, UserX, Eye, User, Plus } from "lucide-react";
+import { Search, FileDown, FileText, UserX, Eye, User, Plus, MapPin, ChevronDown } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, VerticalAlign } from "docx";
@@ -34,34 +33,32 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
 export default function Cartoriais() {
   const { data: cadastros, isLoading } = useCadastros();
   const [searchTerm, setSearchTerm] = useState("");
+  const [cidadeFilter, setCidadeFilter] = useState<string>("TODAS AS CIDADES");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [viewPerson, setViewPerson] = useState<any>(null);
 
   const reportRef = useRef<HTMLDivElement>(null);
 
-  const filteredData = cadastros?.filter(c => {
-    const term = searchTerm.toLowerCase();
-    return c.nome.toLowerCase().includes(term) || (c.alcunha && c.alcunha.toLowerCase().includes(term));
-  }).sort((a, b) => a.nome.localeCompare(b.nome)) || [];
+  const cidades = Array.from(new Set((cadastros || []).map(c => c.cidade).filter(Boolean) as string[])).sort();
 
-  const selectedData = cadastros?.filter(c => selectedIds.has(c.id)) || [];
+  const filteredData = (cadastros || []).filter(c => {
+    const term = searchTerm.toLowerCase();
+    const matchSearch = !term ||
+      c.nome.toLowerCase().includes(term) ||
+      (c.alcunha && c.alcunha.toLowerCase().includes(term)) ||
+      (c.rg && c.rg.toLowerCase().includes(term)) ||
+      (c.cpf && c.cpf.toLowerCase().includes(term)) ||
+      (c.antecedentes && c.antecedentes.toLowerCase().includes(term));
+    const matchCidade = cidadeFilter === "TODAS AS CIDADES" || c.cidade === cidadeFilter;
+    return matchSearch && matchCidade;
+  }).sort((a, b) => a.nome.localeCompare(b.nome));
+
+  const selectedData = (cadastros || []).filter(c => selectedIds.has(c.id));
 
   const toggleSelect = (id: number) => {
     const newSet = new Set(selectedIds);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
+    if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
     setSelectedIds(newSet);
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedIds.size === filteredData.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredData.map(item => item.id)));
-    }
   };
 
   const exportPDF = async () => {
@@ -204,47 +201,52 @@ export default function Cartoriais() {
     <Layout title="RELATÓRIOS CARTORIAIS">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-4 space-y-4">
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-            <h3 className="font-bold text-slate-800 mb-4 uppercase">1. Selecionar Indivíduos</h3>
-            <div className="relative mb-4">
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+            <h3 className="font-bold text-slate-800 uppercase text-sm">1. Selecionar Indivíduos</h3>
+
+            {/* Campo de pesquisa */}
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input 
-                placeholder="Buscar..." 
+                placeholder="Nome, alcunha, RG, CPF, antecedentes..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-white"
+                className="pl-9 bg-white text-sm"
               />
             </div>
-            <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
-              <Checkbox id="select-all" checked={filteredData.length > 0 && selectedIds.size === filteredData.length} onCheckedChange={toggleSelectAll} />
-              <label htmlFor="select-all" className="text-sm font-medium">Selecionar Todos</label>
-            </div>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {filteredData.map(item => (
-                <div key={item.id} className="flex items-start space-x-3 p-2 hover:bg-white rounded-md">
-                  <Checkbox checked={selectedIds.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
-                  <label className="text-sm cursor-pointer flex-1">
-                    <span className="font-bold uppercase block">{item.nome}</span>
-                    {item.alcunha && <span className="text-xs text-slate-500 uppercase block">Vulgo: {item.alcunha}</span>}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Botão INDIVÍDUOS */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            {/* Filtro CIDADE */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full font-bold border-slate-300 h-9 justify-between">
+                  <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-500" /> {cidadeFilter}</span>
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-64 max-h-64 overflow-y-auto">
+                <DropdownMenuItem onClick={() => setCidadeFilter("TODAS AS CIDADES")}>
+                  TODAS AS CIDADES
+                </DropdownMenuItem>
+                {cidades.map(cidade => (
+                  <DropdownMenuItem key={cidade} onClick={() => setCidadeFilter(cidade)}>
+                    {cidade}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Botão INDIVÍDUOS */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="w-full font-bold border-slate-300 h-9">
-                  <User className="w-4 h-4 mr-2" /> INDIVÍDUOS
+                  <User className="w-4 h-4 mr-2" /> INDIVÍDUOS ({filteredData.length})
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-72 max-h-80 overflow-y-auto">
-                {(!cadastros || cadastros.length === 0) ? (
-                  <DropdownMenuItem disabled>Nenhum cadastro encontrado</DropdownMenuItem>
+                {filteredData.length === 0 ? (
+                  <DropdownMenuItem disabled>Nenhum resultado</DropdownMenuItem>
                 ) : (
-                  cadastros.map(p => (
+                  filteredData.map(p => (
                     <DropdownMenuItem
                       key={p.id}
                       className="flex items-center justify-between gap-2 p-2 cursor-default"

@@ -5,11 +5,13 @@ import { useCadastros, useCreateOrganograma, useUpdateOrganograma, useOrganogram
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ArrowRight, Type, Download, Save, User, Eye, FilePlus, FolderOpen, Loader2, ZoomIn, ZoomOut, Circle, Pencil, FileText } from "lucide-react";
+import { Plus, Trash2, ArrowRight, Type, Download, Save, User, Eye, FilePlus, FolderOpen, Loader2, ZoomIn, ZoomOut, Pencil, FileText, MapPin, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PasswordPrompt } from "@/components/password-prompt";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { Document, Packer, Paragraph as DocxParagraph, ImageRun } from "docx";
+import { saveAs } from "file-saver";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,11 +73,22 @@ export default function Organogramas() {
   const [selectedPerson, setSelectedPerson] = useState<any>(null);
   const [openDialogOpen, setOpenDialogOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [cidadeFilter, setCidadeFilter] = useState<string>("TODAS AS CIDADES");
   
   const canvasRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const personCount = useMemo(() => nodes.filter(n => n.type === 'person').length, [nodes]);
+
+  const cidades = useMemo(() => 
+    Array.from(new Set((cadastros || []).map(c => c.cidade).filter(Boolean) as string[])).sort()
+  , [cadastros]);
+
+  const filteredCadastros = useMemo(() => {
+    if (!cadastros) return [];
+    if (cidadeFilter === "TODAS AS CIDADES") return cadastros;
+    return cadastros.filter(c => c.cidade === cidadeFilter);
+  }, [cadastros, cidadeFilter]);
 
   const [cardWidth, setCardWidth] = useState(120);
   const [cardHeight, setCardHeight] = useState(200);
@@ -185,6 +198,14 @@ export default function Organogramas() {
     setZoom(1);
     await new Promise(r => setTimeout(r, 1500));
 
+    // Auto-redimensionar todas as textareas para que o conteúdo apareça completo
+    const textareas = canvasRef.current.querySelectorAll('textarea');
+    textareas.forEach(ta => {
+      (ta as HTMLTextAreaElement).style.height = 'auto';
+      (ta as HTMLTextAreaElement).style.height = (ta as HTMLTextAreaElement).scrollHeight + 'px';
+    });
+    await new Promise(r => setTimeout(r, 100));
+
     try {
       const canvas = await html2canvas(canvasRef.current, { 
         useCORS: true,
@@ -195,10 +216,12 @@ export default function Organogramas() {
         width: canvasRef.current.scrollWidth,
         height: canvasRef.current.scrollHeight,
         onclone: (clonedDoc) => {
-          const images = clonedDoc.getElementsByTagName('img');
-          for (let i = 0; i < images.length; i++) {
-            images[i].src = images[i].src; 
-          }
+          const tas = clonedDoc.querySelectorAll('textarea');
+          tas.forEach(ta => {
+            (ta as HTMLTextAreaElement).style.height = 'auto';
+            (ta as HTMLTextAreaElement).style.height = (ta as HTMLTextAreaElement).scrollHeight + 'px';
+            (ta as HTMLTextAreaElement).style.overflow = 'visible';
+          });
         }
       });
       
@@ -234,13 +257,13 @@ export default function Organogramas() {
 
   const generateWord = async () => {
     if (!canvasRef.current) return;
-    
+
     const originalZoom = zoom;
     setZoom(1);
     await new Promise(r => setTimeout(r, 1500));
 
     try {
-      const canvas = await html2canvas(canvasRef.current, { 
+      const canvas = await html2canvas(canvasRef.current, {
         useCORS: true,
         scale: 2,
         backgroundColor: "#ffffff",
@@ -248,77 +271,40 @@ export default function Organogramas() {
         allowTaint: true,
         width: canvasRef.current.scrollWidth,
         height: canvasRef.current.scrollHeight,
-        onclone: (clonedDoc) => {
-          const images = clonedDoc.getElementsByTagName('img');
-          for (let i = 0; i < images.length; i++) {
-            images[i].src = images[i].src; 
-          }
-        }
       });
-      
+
       setZoom(originalZoom);
-      
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      
-      // Create Word-compatible HTML document with all elements
-      const htmlContent = `
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-        <html xmlns="http://www.w3.org/1999/xhtml">
-        <head>
-          <meta charset="utf-8" />
-          <meta name="Generator" content="Organograma Export" />
-          <title>${organogramaNome || 'organograma'}</title>
-          <style type="text/css">
-            body { 
-              margin: 1in; 
-              font-family: Arial, sans-serif;
-              background-color: #ffffff;
-            }
-            h1 { 
-              text-align: center; 
-              font-size: 18pt; 
-              margin-bottom: 20px;
-              color: #000000;
-              font-weight: bold;
-            }
-            .organogram-image { 
-              width: 100%; 
-              max-width: 8in; 
-              height: auto; 
-              display: block; 
-              margin: 0 auto;
-              page-break-inside: avoid;
-            }
-            .footer {
-              margin-top: 20px;
-              text-align: center;
-              font-size: 9pt;
-              color: #666666;
-              border-top: 1px solid #cccccc;
-              padding-top: 10px;
-            }
-          </style>
-        </head>
-        <body>
-          <h1>ORGANOGRAMA: ${organogramaNome || 'SEM NOME'}</h1>
-          <img class="organogram-image" src="${imgData}" alt="Organograma">
-          <div class="footer">
-            <p>Documento gerado automaticamente - Todos os cards, textos e setas inclusos</p>
-          </div>
-        </body>
-        </html>
-      `;
-      
-      const blob = new Blob([htmlContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${organogramaNome || 'organograma'}.docx`;
-      link.click();
-      URL.revokeObjectURL(url);
-      
-      toast({ title: "Sucesso", description: "Organograma exportado em Word com todos os elementos." });
+
+      const imgBlob: Blob = await new Promise((resolve) => canvas.toBlob(b => resolve(b!), 'image/png'));
+      const imgBuffer = await imgBlob.arrayBuffer();
+      const imgUint8 = new Uint8Array(imgBuffer);
+
+      const canvasW = canvas.width;
+      const canvasH = canvas.height;
+      const maxW = 700;
+      const ratio = Math.min(maxW / canvasW, 520 / canvasH);
+      const imgW = Math.round(canvasW * ratio);
+      const imgH = Math.round(canvasH * ratio);
+
+      const doc = new Document({
+        sections: [{
+          children: [
+            new DocxParagraph({
+              children: [
+                new ImageRun({
+                  data: imgUint8,
+                  transformation: { width: imgW, height: imgH },
+                  type: 'png',
+                }),
+              ],
+            }),
+          ],
+        }],
+      });
+
+      const wordBlob = await Packer.toBlob(doc);
+      saveAs(wordBlob, `${organogramaNome || 'organograma'}.docx`);
+      toast({ title: "Sucesso", description: "Organograma exportado em Word." });
     } catch (err) {
       console.error(err);
       setZoom(originalZoom);
@@ -379,9 +365,9 @@ export default function Organogramas() {
   };
 
   const renderPersonCard = (node: OrganogramaNode) => {
-    const labelSz = cardScale.w > 150 ? 'text-[8px]' : 'text-[6px]';
-    const nameSz = cardScale.w > 150 ? 'text-[9px]' : 'text-[7px]';
-    const photoH = Math.floor(cardScale.h * 0.45);
+    const labelSz = cardScale.w > 150 ? 'text-[7px]' : 'text-[5px]';
+    const nameSz = cardScale.w > 150 ? 'text-[8px]' : 'text-[6px]';
+    const photoH = Math.floor(cardScale.h * 0.58);
 
     return (
       <Card 
@@ -509,14 +495,32 @@ export default function Organogramas() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              {/* Filtro CIDADE */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full bg-white border-slate-200 h-9 font-bold justify-between">
+                    <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-slate-500" /> {cidadeFilter.length > 18 ? cidadeFilter.slice(0,18)+'...' : cidadeFilter}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64 max-h-64 overflow-y-auto">
+                  <DropdownMenuItem onClick={() => setCidadeFilter("TODAS AS CIDADES")}>TODAS AS CIDADES</DropdownMenuItem>
+                  {cidades.map(cidade => (
+                    <DropdownMenuItem key={cidade} onClick={() => setCidadeFilter(cidade)}>{cidade}</DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="w-full bg-white text-slate-700 border-slate-200 h-9 font-bold">
-                    <User className="w-4 h-4 mr-1" /> INDIVÍDUOS
+                    <User className="w-4 h-4 mr-1" /> INDIVÍDUOS ({filteredCadastros.length})
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-64 max-h-80 overflow-y-auto">
-                  {cadastros?.map(p => (
+                  {filteredCadastros.length === 0 ? (
+                    <DropdownMenuItem disabled>Nenhum resultado</DropdownMenuItem>
+                  ) : filteredCadastros.map(p => (
                     <DropdownMenuItem 
                       key={p.id} 
                       className="flex items-center justify-between gap-2 p-2 cursor-default"
@@ -727,12 +731,13 @@ export default function Organogramas() {
                   key={node.id}
                   position={{ x: node.x, y: node.y }}
                   scale={zoom}
+                  disabled={isAddingConnection}
                   onStop={(e, data) => {
                     setNodes(prev => prev.map(n => n.id === node.id ? { ...n, x: data.x, y: data.y } : n));
                   }}
                 >
                   <div 
-                    className={`absolute z-10 cursor-move group ${isAddingConnection ? 'ring-4 ring-blue-400 ring-offset-4 rounded-xl' : ''} ${connectionStart === node.id ? 'ring-4 ring-orange-400 ring-offset-4 rounded-xl' : ''}`}
+                    className={`absolute z-10 ${isAddingConnection ? 'cursor-pointer' : 'cursor-move'} group ${isAddingConnection ? 'ring-4 ring-blue-400 ring-offset-4 rounded-xl' : ''} ${connectionStart === node.id ? 'ring-4 ring-orange-400 ring-offset-4 rounded-xl' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       startConnection(node.id);

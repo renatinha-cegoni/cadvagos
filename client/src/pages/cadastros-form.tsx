@@ -41,6 +41,7 @@ export default function CadastrosForm() {
       codigoPreso: "",
       pai: "",
       mae: "",
+      cidade: "",
       endereco: "",
       antecedentes: "",
       observacoes: "",
@@ -266,6 +267,17 @@ export default function CadastrosForm() {
               className="uppercase-input"
               {...register("mae")}
               onChange={(e) => handleUppercaseChange("mae", e)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cidade">Cidade</Label>
+            <Input 
+              id="cidade" 
+              className="uppercase-input"
+              placeholder="CIDADE"
+              {...register("cidade")}
+              onChange={(e) => handleUppercaseChange("cidade", e)}
             />
           </div>
 
