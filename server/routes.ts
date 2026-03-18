@@ -155,6 +155,7 @@ async function seedDatabase() {
       endereco: "RUA A, 123",
       antecedentes: "ROUBO",
       observacoes: "NADA A DECLARAR",
+      cidade: "SÃO PAULO", // <-- campo incluído
     });
   }
 }
