@@ -33,12 +33,12 @@ app.get("/api", (_req: Request, res: Response) => {
       serveStatic(app);
     }
 
-    const port = Number(process.env.PORT) || 8080;
+    // ✅ usa a porta dinâmica do ambiente
+    const port = Number(process.env.PORT) || 3000;
 
     httpServer.listen(port, "0.0.0.0", () => {
       console.log("Server running on port " + port);
     });
-
   } catch (error) {
     console.error("Server failed to start:", error);
     process.exit(1);
