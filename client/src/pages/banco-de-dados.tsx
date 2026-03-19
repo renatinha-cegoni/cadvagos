@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/layout";
 import { PasswordPrompt } from "@/components/password-prompt";
@@ -6,7 +6,13 @@ import { useCadastros, useDeleteCadastro } from "@/hooks/use-cadastros";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Edit, Trash2, User, Database as DbIcon, X } from "lucide-react";
+import { Search, Edit, Trash2, User, Database as DbIcon, ChevronDown, MapPin } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +37,7 @@ export default function BancoDeDados() {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [cidadeFilter, setCidadeFilter] = useState<string>("TODAS AS CIDADES");
   
   // Security prompt state
   const [promptOpen, setPromptOpen] = useState(false);
@@ -40,14 +47,22 @@ export default function BancoDeDados() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [idToDelete, setIdToDelete] = useState<number | null>(null);
 
-  const filteredData = cadastros?.filter(c => {
-    const term = searchTerm.toLowerCase();
-    return c.nome.toLowerCase().includes(term) || 
-           (c.alcunha && c.alcunha.toLowerCase().includes(term)) ||
-           (c.rg && c.rg.toLowerCase().includes(term)) ||
-           (c.cpf && c.cpf.toLowerCase().includes(term)) ||
-           (c.antecedentes && c.antecedentes.toLowerCase().includes(term));
-  }).sort((a, b) => a.nome.localeCompare(b.nome)) || [];
+  const cidades = useMemo(() =>
+    Array.from(new Set((cadastros || []).map(c => c.cidade).filter(Boolean) as string[])).sort()
+  , [cadastros]);
+
+  const filteredData = useMemo(() => {
+    return (cadastros || []).filter(c => {
+      const term = searchTerm.toLowerCase();
+      const matchesSearch = c.nome.toLowerCase().includes(term) || 
+             (c.alcunha && c.alcunha.toLowerCase().includes(term)) ||
+             (c.rg && c.rg.toLowerCase().includes(term)) ||
+             (c.cpf && c.cpf.toLowerCase().includes(term)) ||
+             (c.antecedentes && c.antecedentes.toLowerCase().includes(term));
+      const matchesCidade = cidadeFilter === "TODAS AS CIDADES" || c.cidade === cidadeFilter;
+      return matchesSearch && matchesCidade;
+    }).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [cadastros, searchTerm, cidadeFilter]);
 
   const requestAction = (type: 'edit' | 'delete', id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -76,14 +91,35 @@ export default function BancoDeDados() {
   return (
     <Layout title="BANCO DE DADOS">
       <div className="space-y-6">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <Input 
-            placeholder="Buscar por Nome, Alcunha, RG, CPF ou Antecedentes..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-12 h-14 text-lg bg-slate-50 border-slate-200 focus:bg-white transition-colors"
-          />
+        <div className="flex gap-3 items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Input 
+              placeholder="Buscar por Nome, Alcunha, RG, CPF ou Antecedentes..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-12 h-14 text-lg bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+            />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-14 px-4 gap-2 font-bold text-sm shrink-0 border-slate-200">
+                <MapPin className="w-4 h-4 text-slate-500" />
+                <span className="max-w-[140px] truncate">{cidadeFilter}</span>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-60 max-h-72 overflow-y-auto" align="end">
+              <DropdownMenuItem onClick={() => setCidadeFilter("TODAS AS CIDADES")} className={cidadeFilter === "TODAS AS CIDADES" ? "font-bold bg-blue-50" : ""}>
+                TODAS AS CIDADES
+              </DropdownMenuItem>
+              {cidades.map(cidade => (
+                <DropdownMenuItem key={cidade} onClick={() => setCidadeFilter(cidade)} className={cidadeFilter === cidade ? "font-bold bg-blue-50" : ""}>
+                  {cidade}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">

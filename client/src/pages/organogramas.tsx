@@ -37,10 +37,6 @@ interface Connection {
   id: string;
   from: string;
   to: string;
-  x1Override?: number;
-  y1Override?: number;
-  x2Override?: number;
-  y2Override?: number;
 }
 
 function DetailRow({ label, value }: { label: string, value: string | null }) {
@@ -65,7 +61,6 @@ export default function Organogramas() {
   const [isAddingConnection, setIsAddingConnection] = useState(false);
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   const [selectedConnId, setSelectedConnId] = useState<string | null>(null);
-  const [dragHandle, setDragHandle] = useState<{ connId: string; which: 'start' | 'end' } | null>(null);
   const [promptOpen, setPromptOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [organogramaNome, setOrganogramaNome] = useState("");
@@ -76,7 +71,6 @@ export default function Organogramas() {
   const [cidadeFilter, setCidadeFilter] = useState<string>("TODAS AS CIDADES");
   
   const canvasRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
 
   const personCount = useMemo(() => nodes.filter(n => n.type === 'person').length, [nodes]);
 
@@ -161,22 +155,6 @@ export default function Organogramas() {
 
   const updateNodeFontSize = (id: string, size: number) => {
     setNodes(prev => prev.map(n => n.id === id ? { ...n, data: { ...n.data, fontSize: size } } : n));
-  };
-
-  const handleSvgMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!dragHandle || !svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / zoom;
-    const y = (e.clientY - rect.top) / zoom;
-    setConnections(prev => prev.map(c => {
-      if (c.id !== dragHandle.connId) return c;
-      if (dragHandle.which === 'start') return { ...c, x1Override: x, y1Override: y };
-      return { ...c, x2Override: x, y2Override: y };
-    }));
-  };
-
-  const handleSvgMouseUp = () => {
-    setDragHandle(null);
   };
 
   useEffect(() => {
@@ -625,11 +603,8 @@ export default function Organogramas() {
               }}
             >
               <svg 
-                ref={svgRef}
                 className="absolute inset-0 w-full h-full"
-                style={{ zIndex: 5, pointerEvents: dragHandle ? 'all' : 'none' }}
-                onMouseMove={handleSvgMouseMove}
-                onMouseUp={handleSvgMouseUp}
+                style={{ zIndex: 5, pointerEvents: 'none' }}
                 onClick={() => setSelectedConnId(null)}
               >
                 <defs>
@@ -637,7 +612,7 @@ export default function Organogramas() {
                     <path d="M0,0 L0,10 L10,5 z" fill="#000000" />
                   </marker>
                   <marker id="arrowSelected" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-                    <path d="M0,0 L0,10 L10,5 z" fill="#2563eb" />
+                    <path d="M0,0 L0,10 L10,5 z" fill="#ef4444" />
                   </marker>
                 </defs>
                 {connections.map((conn) => {
@@ -648,35 +623,10 @@ export default function Organogramas() {
                   const d1 = from.type === 'person' ? cardScale : { w: 150, h: 60 };
                   const d2 = to.type === 'person' ? cardScale : { w: 150, h: 60 };
 
-                  const c1raw = { x: from.x + d1.w / 2, y: from.y + d1.h / 2 };
-                  const c2raw = { x: to.x + d2.w / 2, y: to.y + d2.h / 2 };
-
-                  const dx = c2raw.x - c1raw.x;
-                  const dy = c2raw.y - c1raw.y;
-                  const angle = Math.atan2(dy, dx);
-                  
-                  const targetW = d2.w / 2;
-                  const targetH = d2.h / 2;
-                  let edgeX, edgeY;
-                  const absTan = Math.abs(Math.tan(angle));
-                  const boxTan = targetH / targetW;
-                  if (absTan < boxTan) {
-                    edgeX = targetW * Math.sign(dx);
-                    edgeY = targetW * Math.abs(Math.tan(angle)) * Math.sign(dy);
-                  } else {
-                    edgeX = (targetH / Math.abs(Math.tan(angle))) * Math.sign(dx);
-                    edgeY = targetH * Math.sign(dy);
-                  }
-
-                  const autoX1 = c1raw.x;
-                  const autoY1 = c1raw.y;
-                  const autoX2 = c2raw.x - edgeX;
-                  const autoY2 = c2raw.y - edgeY;
-
-                  const x1 = conn.x1Override !== undefined ? conn.x1Override : autoX1;
-                  const y1 = conn.y1Override !== undefined ? conn.y1Override : autoY1;
-                  const x2 = conn.x2Override !== undefined ? conn.x2Override : autoX2;
-                  const y2 = conn.y2Override !== undefined ? conn.y2Override : autoY2;
+                  const x1 = from.x + d1.w / 2;
+                  const y1 = from.y + d1.h / 2;
+                  const x2 = to.x + d2.w / 2;
+                  const y2 = to.y + d2.h / 2;
 
                   const isSelected = selectedConnId === conn.id;
                   const midX = (x1 + x2) / 2;
@@ -684,43 +634,30 @@ export default function Organogramas() {
 
                   return (
                     <g key={conn.id} style={{ pointerEvents: 'all' }}>
-                      {/* Linha invisível mais grossa para facilitar o clique */}
+                      {/* Linha invisível grossa para clique fácil */}
                       <line 
                         x1={x1} y1={y1} x2={x2} y2={y2}
                         stroke="transparent"
-                        strokeWidth="12"
+                        strokeWidth="14"
                         style={{ cursor: 'pointer' }}
                         onClick={(e) => { e.stopPropagation(); setSelectedConnId(isSelected ? null : conn.id); }}
                       />
-                      {/* Linha visível */}
+                      {/* Linha visível com seta */}
                       <line 
                         x1={x1} y1={y1} x2={x2} y2={y2}
-                        stroke={isSelected ? "#2563eb" : "#000000"}
+                        stroke={isSelected ? "#ef4444" : "#000000"}
                         strokeWidth={isSelected ? 2.5 : 2}
                         markerEnd={isSelected ? "url(#arrowSelected)" : "url(#arrowBlack)"}
                         style={{ pointerEvents: 'none' }}
                       />
-                      {/* Handles quando selecionada */}
-                      {isSelected && (
-                        <>
-                          <circle cx={x1} cy={y1} r="8" fill="#2563eb" stroke="white" strokeWidth="2"
-                            style={{ cursor: 'move', pointerEvents: 'all' }}
-                            onMouseDown={(e) => { e.stopPropagation(); setDragHandle({ connId: conn.id, which: 'start' }); }}
-                          />
-                          <circle cx={x2} cy={y2} r="8" fill="#2563eb" stroke="white" strokeWidth="2"
-                            style={{ cursor: 'move', pointerEvents: 'all' }}
-                            onMouseDown={(e) => { e.stopPropagation(); setDragHandle({ connId: conn.id, which: 'end' }); }}
-                          />
-                          {/* Botão X para deletar */}
-                          <g
-                            style={{ cursor: 'pointer', pointerEvents: 'all' }}
-                            onClick={(e) => { e.stopPropagation(); removeConnection(conn.id); }}
-                          >
-                            <circle cx={midX} cy={midY} r="11" fill="#ef4444" stroke="white" strokeWidth="2" />
-                            <text x={midX} y={midY + 5} textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" style={{ userSelect: 'none' }}>×</text>
-                          </g>
-                        </>
-                      )}
+                      {/* Botão X para excluir (visível sempre ao passar o mouse ou quando selecionada) */}
+                      <g
+                        style={{ cursor: 'pointer', pointerEvents: 'all' }}
+                        onClick={(e) => { e.stopPropagation(); removeConnection(conn.id); }}
+                      >
+                        <circle cx={midX} cy={midY} r="10" fill={isSelected ? "#ef4444" : "#64748b"} stroke="white" strokeWidth="2" opacity={isSelected ? 1 : 0.7} />
+                        <text x={midX} y={midY + 4.5} textAnchor="middle" fill="white" fontSize="13" fontWeight="bold" style={{ userSelect: 'none' }}>×</text>
+                      </g>
                     </g>
                   );
                 })}
@@ -738,7 +675,8 @@ export default function Organogramas() {
                 >
                   <div 
                     className={`absolute z-10 ${isAddingConnection ? 'cursor-pointer' : 'cursor-move'} group ${isAddingConnection ? 'ring-4 ring-blue-400 ring-offset-4 rounded-xl' : ''} ${connectionStart === node.id ? 'ring-4 ring-orange-400 ring-offset-4 rounded-xl' : ''}`}
-                    onClick={(e) => {
+                    onMouseUp={(e) => {
+                      if (!isAddingConnection) return;
                       e.stopPropagation();
                       startConnection(node.id);
                     }}
