@@ -3,7 +3,7 @@ import { Layout } from "@/components/layout";
 import { useCadastros } from "@/hooks/use-cadastros";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, FileDown, FileText, UserX, Eye, User, Plus, MapPin, ChevronDown } from "lucide-react";
+import { Search, FileDown, FileText, UserX, Eye, User, Plus, MapPin, ChevronDown, Trash2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, AlignmentType, VerticalAlign } from "docx";
@@ -286,6 +286,37 @@ export default function Cartoriais() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
+          {/* Indivíduos selecionados na cartorial */}
+          {selectedIds.size > 0 && (
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <div className="px-3 py-2 bg-slate-50 border-b flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-600 uppercase">Selecionados ({selectedIds.size})</span>
+                <Button variant="ghost" size="sm" className="h-6 text-[9px] text-red-500 px-2" onClick={() => setSelectedIds(new Set())}>
+                  Limpar tudo
+                </Button>
+              </div>
+              <div className="divide-y max-h-48 overflow-y-auto">
+                {selectedData.map(item => (
+                  <div key={item.id} className="flex items-center justify-between px-3 py-1.5 hover:bg-slate-50">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-bold uppercase truncate">{item.nome}</p>
+                      {item.alcunha && <p className="text-[8px] text-slate-400 uppercase truncate">{item.alcunha}</p>}
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 text-red-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+                      onClick={() => toggleSelect(item.id)}
+                      title="Remover da cartorial"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
             <Button className="w-full bg-red-600 hover:bg-red-700" onClick={exportPDF} disabled={selectedIds.size === 0}>

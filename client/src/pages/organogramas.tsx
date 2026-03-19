@@ -176,13 +176,31 @@ export default function Organogramas() {
     setZoom(1);
     await new Promise(r => setTimeout(r, 1500));
 
-    // Auto-redimensionar todas as textareas para que o conteúdo apareça completo
+    // Auto-redimensionar textareas para mostrar todo o texto
     const textareas = canvasRef.current.querySelectorAll('textarea');
     textareas.forEach(ta => {
       (ta as HTMLTextAreaElement).style.height = 'auto';
       (ta as HTMLTextAreaElement).style.height = (ta as HTMLTextAreaElement).scrollHeight + 'px';
     });
-    await new Promise(r => setTimeout(r, 100));
+
+    // Calcular bounding box de todos os nodes para garantir captura completa
+    let maxRight = 800, maxBottom = 600;
+    if (nodes.length > 0) {
+      nodes.forEach(n => {
+        const d = n.type === 'person' ? cardScale : { w: 150, h: 60 };
+        maxRight = Math.max(maxRight, n.x + d.w + 100);
+        maxBottom = Math.max(maxBottom, n.y + d.h + 100);
+      });
+    }
+
+    // Expandir o canvas temporariamente para incluir todos os nós
+    const savedMinH = canvasRef.current.style.minHeight;
+    const savedAspect = canvasRef.current.style.aspectRatio;
+    const savedH = canvasRef.current.style.height;
+    canvasRef.current.style.minHeight = `${maxBottom}px`;
+    canvasRef.current.style.height = `${maxBottom}px`;
+    canvasRef.current.style.aspectRatio = 'unset';
+    await new Promise(r => setTimeout(r, 200));
 
     try {
       const canvas = await html2canvas(canvasRef.current, { 
@@ -191,17 +209,25 @@ export default function Organogramas() {
         backgroundColor: "#ffffff",
         logging: false,
         allowTaint: true,
-        width: canvasRef.current.scrollWidth,
-        height: canvasRef.current.scrollHeight,
+        scrollX: 0,
+        scrollY: 0,
+        width: Math.max(canvasRef.current.scrollWidth, maxRight),
+        height: Math.max(canvasRef.current.scrollHeight, maxBottom),
         onclone: (clonedDoc) => {
           const tas = clonedDoc.querySelectorAll('textarea');
           tas.forEach(ta => {
             (ta as HTMLTextAreaElement).style.height = 'auto';
             (ta as HTMLTextAreaElement).style.height = (ta as HTMLTextAreaElement).scrollHeight + 'px';
             (ta as HTMLTextAreaElement).style.overflow = 'visible';
+            (ta as HTMLTextAreaElement).style.whiteSpace = 'pre-wrap';
           });
         }
       });
+
+      // Restaurar canvas
+      canvasRef.current.style.minHeight = savedMinH;
+      canvasRef.current.style.height = savedH;
+      canvasRef.current.style.aspectRatio = savedAspect;
       
       setZoom(originalZoom);
       
@@ -228,6 +254,11 @@ export default function Organogramas() {
       pdf.save(`${organogramaNome || 'organograma'}.pdf`);
     } catch (err) {
       console.error(err);
+      if (canvasRef.current) {
+        canvasRef.current.style.minHeight = 'unset';
+        canvasRef.current.style.height = '';
+        canvasRef.current.style.aspectRatio = '297/210';
+      }
       setZoom(originalZoom);
       toast({ title: "Erro", description: "Falha ao gerar PDF.", variant: "destructive" });
     }
@@ -337,6 +368,14 @@ export default function Organogramas() {
     setPromptOpen(true);
   };
 
+  // Calcula o ponto na borda do retângulo (cx,cy,hw,hh) na direção (dx,dy)
+  const getEdgePoint = (cx: number, cy: number, hw: number, hh: number, dx: number, dy: number) => {
+    if (dx === 0 && dy === 0) return { x: cx, y: cy };
+    const absDx = Math.abs(dx), absDy = Math.abs(dy);
+    const t = absDx * hh > absDy * hw ? hw / absDx : hh / absDy;
+    return { x: cx + dx * t, y: cy + dy * t };
+  };
+
   const getDimensions = (n: OrganogramaNode) => {
     if (n.type === 'text') return { w: 150, h: 60 };
     return cardScale;
@@ -345,12 +384,12 @@ export default function Organogramas() {
   const renderPersonCard = (node: OrganogramaNode) => {
     const labelSz = cardScale.w > 150 ? 'text-[7px]' : 'text-[5px]';
     const nameSz = cardScale.w > 150 ? 'text-[8px]' : 'text-[6px]';
-    const photoH = Math.floor(cardScale.h * 0.58);
+    const photoH = Math.floor(cardScale.h * 0.60);
 
     return (
       <Card 
-        style={{ width: `${cardScale.w}px`, height: `${cardScale.h}px` }}
-        className="bg-white border-2 border-slate-900 overflow-hidden shadow-2xl relative flex flex-col"
+        style={{ width: `${cardScale.w}px`, minHeight: `${cardScale.h}px` }}
+        className="bg-white border-2 border-slate-900 shadow-2xl relative flex flex-col"
       >
         <div 
           className="bg-slate-100 border-b relative overflow-hidden shrink-0"
@@ -375,7 +414,7 @@ export default function Organogramas() {
             <Eye className="h-2.5 w-2.5 text-blue-600" />
           </Button>
         </div>
-        <div className="flex-1 p-1 space-y-0.5 bg-white overflow-hidden flex flex-col">
+        <div className="p-1 space-y-0.5 bg-white flex flex-col">
           <p className={`${nameSz} font-black uppercase leading-tight text-slate-900 break-words`}>
             {node.data.nome}
           </p>
@@ -623,10 +662,17 @@ export default function Organogramas() {
                   const d1 = from.type === 'person' ? cardScale : { w: 150, h: 60 };
                   const d2 = to.type === 'person' ? cardScale : { w: 150, h: 60 };
 
-                  const x1 = from.x + d1.w / 2;
-                  const y1 = from.y + d1.h / 2;
-                  const x2 = to.x + d2.w / 2;
-                  const y2 = to.y + d2.h / 2;
+                  // Centros dos cards
+                  const c1x = from.x + d1.w / 2, c1y = from.y + d1.h / 2;
+                  const c2x = to.x + d2.w / 2, c2y = to.y + d2.h / 2;
+                  const dx = c2x - c1x, dy = c2y - c1y;
+
+                  // Pontos nas bordas dos cards (não nos centros)
+                  const ep1 = getEdgePoint(c1x, c1y, d1.w / 2, d1.h / 2, dx, dy);
+                  const ep2 = getEdgePoint(c2x, c2y, d2.w / 2, d2.h / 2, -dx, -dy);
+
+                  const x1 = ep1.x, y1 = ep1.y;
+                  const x2 = ep2.x, y2 = ep2.y;
 
                   const isSelected = selectedConnId === conn.id;
                   const midX = (x1 + x2) / 2;
@@ -683,30 +729,19 @@ export default function Organogramas() {
                   >
                     {node.type === 'person' ? renderPersonCard(node) : (
                       <div style={{ width: `${cardScale.w}px` }} className="bg-yellow-50 border-2 border-yellow-400 shadow-xl rounded-sm relative flex flex-col">
-                        {/* Controle de tamanho de fonte */}
-                        <div 
-                          className="flex items-center gap-1 px-1.5 pt-1 pb-0.5 border-b border-yellow-300"
-                          onClick={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
-                        >
-                          <span className="text-[8px] text-yellow-700 font-bold shrink-0">Pt:</span>
-                          <input
-                            type="number"
-                            value={node.data.fontSize || 12}
-                            onChange={(e) => updateNodeFontSize(node.id, Number(e.target.value))}
-                            className="w-10 text-[8px] bg-yellow-100 border border-yellow-300 rounded text-center outline-none font-bold"
-                            min={6}
-                            max={72}
-                          />
-                        </div>
                         <textarea 
-                          className="bg-transparent border-none resize-none w-full uppercase italic font-black focus:ring-0 p-1.5 text-slate-900 overflow-hidden break-words"
+                          className="bg-transparent border-none resize-none w-full uppercase italic font-black focus:ring-0 p-2 text-slate-900 break-words"
                           style={{ 
                             wordWrap: 'break-word', 
                             whiteSpace: 'pre-wrap',
-                            fontSize: `${node.data.fontSize || 12}px`
+                            fontSize: '10pt',
+                            lineHeight: 1.3,
+                            minHeight: '40px',
+                            overflow: 'hidden',
                           }}
                           value={node.data.text}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
                           onChange={(e) => {
                             updateNodeText(node.id, e.target.value);
                             e.target.style.height = 'auto';
