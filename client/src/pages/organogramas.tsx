@@ -635,10 +635,7 @@ export default function Organogramas() {
                 aspectRatio: '297/210' // landscape A4 ratio
               }}
               onClick={() => {
-                if (isAddingConnection) {
-                  setConnectionStart(null);
-                  setIsAddingConnection(false);
-                }
+                setSelectedConnId(null);
               }}
             >
               <svg 
